@@ -27,14 +27,14 @@
         <div class="status" id="last-update">Waiting for update...</div>
         
         <div style="position: relative; display: inline-block;">
-            <img id="view-canvas" src="" alt="Live View Loading..." onclick="sendClick(event)">
+            <!-- Chrome is set to 1280x720 in python script -->
+            <img id="view-canvas" src="" alt="Live View Loading..." onclick="sendClick(event)" width="1280" height="720">
         </div>
         
         <p><button class="btn" onclick="refreshImage()">Force Refresh</button></p>
     </div>
 
     <script>
-        // Your Firebase Config
         const firebaseConfig = {
             apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
             authDomain: "smsyy-f7bb7.firebaseapp.com",
@@ -46,14 +46,17 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        
+        // Correct Storage URL Format
         const storageUrl = "https://firebasestorage.googleapis.com/v0/b/smsyy-f7bb7.firebasestorage.app/o/live_view.jpg?alt=media&t=";
 
         function refreshImage() {
             const img = document.getElementById('view-canvas');
+            // Adding timestamp to prevent browser caching
             img.src = storageUrl + Date.now();
         }
 
-        // Listen for status updates to refresh image
+        // Listen for status updates in Firestore to auto-refresh the image
         db.collection("status").doc("view").onSnapshot((doc) => {
             if (doc.exists) {
                 document.getElementById('last-update').innerText = "Last Updated: " + new Date().toLocaleTimeString();
@@ -65,7 +68,7 @@
             const img = document.getElementById('view-canvas');
             const rect = img.getBoundingClientRect();
             
-            // Calculate relative coordinates (mapping to 1280x720)
+            // Map click from displayed size to actual 1280x720 coordinates
             const x = Math.round((e.clientX - rect.left) * (1280 / rect.width));
             const y = Math.round((e.clientY - rect.top) * (720 / rect.height));
 
@@ -75,8 +78,6 @@
                 x: x,
                 y: y,
                 time: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-                console.log("Click registered in Firestore");
             });
         }
 

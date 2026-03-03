@@ -9,128 +9,159 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <style>
         body { 
-            background: #000; 
-            color: #0f0; 
-            font-family: 'Courier New', monospace; 
+            background: #0b0b0b; 
+            color: #00ff41; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             text-align: center; 
             margin: 0; 
-            overflow-x: hidden; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
         }
-        .container { padding: 10px; }
+        .container { 
+            padding: 20px; 
+            width: 100%;
+            max-width: 900px;
+        }
         
-        /* Viewport Container */
+        .header {
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ff41;
+        }
+
         .viewport-wrapper {
-            position: relative;
-            display: inline-block;
-            margin: 0 auto;
-            border: 2px solid #0f0;
-            background: #111;
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+            position: relative; 
+            display: inline-block; 
+            border: 2px solid #00ff41; 
+            background: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+            border-radius: 8px;
+            overflow: hidden;
         }
         
         #live-view { 
             width: 100%; 
             max-width: 854px; 
-            cursor: crosshair;
-            display: block;
+            cursor: crosshair; 
+            display: block; 
+            min-height: 480px;
         }
 
         .status-bar { 
             font-size: 14px; 
-            color: #0f0; 
-            margin-bottom: 10px; 
-            background: #1a1a1a;
-            padding: 5px;
-            border-bottom: 1px solid #333;
+            margin-bottom: 15px; 
+            padding: 8px;
+            background: rgba(0, 255, 65, 0.1);
+            border-radius: 4px;
+            width: 100%;
         }
 
-        /* Controls Section */
         .controls-panel {
-            margin-top: 15px;
-            padding: 15px;
-            background: #111;
-            max-width: 854px;
-            margin-left: auto;
-            margin-right: auto;
+            margin-top: 20px; 
+            padding: 20px; 
+            background: #161616;
+            border-radius: 12px;
             border: 1px solid #333;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
         }
 
         .kb-input { 
             background: #000; 
-            border: 1px solid #0f0; 
-            color: #0f0; 
-            padding: 12px; 
-            width: 70%; 
-            font-family: inherit;
-            font-size: 16px;
+            border: 1px solid #444; 
+            color: #00ff41; 
+            padding: 12px 15px; 
+            flex-grow: 1;
+            font-size: 16px; 
             outline: none;
+            border-radius: 6px;
+            transition: border 0.3s;
+        }
+
+        .kb-input:focus {
+            border-color: #00ff41;
         }
 
         .btn { 
-            background: #1a1a1a; 
-            border: 1px solid #0f0; 
-            color: #0f0; 
-            padding: 10px 15px; 
+            background: #222; 
+            border: 1px solid #00ff41; 
+            color: #00ff41; 
+            padding: 10px 20px; 
             cursor: pointer; 
-            font-family: inherit;
             text-transform: uppercase;
-            transition: 0.2s;
-            margin: 2px;
+            font-weight: bold;
+            border-radius: 6px;
+            transition: all 0.2s;
         }
-        
-        .btn:hover { background: #0f0; color: #000; }
-        .btn:active { transform: scale(0.95); }
 
-        .special-keys {
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: center;
-            gap: 10px;
+        .btn:hover { 
+            background: #00ff41; 
+            color: #000; 
+            box-shadow: 0 0 10px #00ff41;
+        }
+
+        .btn:active {
+            transform: translateY(2px);
+        }
+
+        .special-keys { 
+            margin-bottom: 15px; 
+            display: flex; 
+            justify-content: center; 
+            gap: 10px; 
             flex-wrap: wrap;
         }
 
-        .btn-special {
-            border-color: #ff8800;
-            color: #ff8800;
-        }
-        
-        .btn-special:hover {
-            background: #ff8800;
-            color: #000;
+        .btn-orange {
+            border-color: #ff9f00;
+            color: #ff9f00;
         }
 
-        .hint {
-            font-size: 11px;
-            color: #555;
-            margin-top: 10px;
+        .btn-orange:hover {
+            background: #ff9f00;
+            color: #000;
+            box-shadow: 0 0 10px #ff9f00;
+        }
+
+        .footer-note {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #666;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="status-bar" id="stat">Initializing Firebase Connection...</div>
+        <h2 class="header">WEB CONSOLE v2.0</h2>
         
+        <div class="status-bar" id="stat">Sytem Booting...</div>
+
         <div class="viewport-wrapper">
-            <img id="live-view" src="" alt="STREAM OFFLINE" onclick="sendClick(event)">
+            <img id="live-view" src="" alt="WAITING FOR STREAM..." onclick="sendClick(event)">
         </div>
-        
+
         <div class="controls-panel">
-            <!-- Special Function Keys -->
             <div class="special-keys">
-                <button class="btn btn-special" onclick="sendKey('enter', 'special')">⏎ ENTER</button>
-                <button class="btn btn-special" onclick="sendKey('backspace', 'special')">⌫ BACKSPACE</button>
-                <button class="btn btn-special" onclick="sendKey('tab', 'special')">⇥ TAB</button>
-                <button class="btn btn-special" onclick="sendKey('esc', 'special')">ESC</button>
-                <button class="btn" onclick="forceRefresh()">↻ REFRESH</button>
+                <button class="btn btn-orange" onclick="sendKey('enter', 'special')">ENTER ⏎</button>
+                <button class="btn btn-orange" onclick="sendKey('backspace', 'special')">BACKSPACE ⌫</button>
+                <button class="btn btn-orange" onclick="sendKey('tab', 'special')">TAB ⇥</button>
+                <button class="btn" onclick="location.reload()">REFRESH UI ↻</button>
             </div>
 
-            <!-- Typing Interface -->
-            <div style="display: flex; gap: 5px; justify-content: center;">
-                <input type="text" id="typer" class="kb-input" placeholder="Type text to send to PC..." onkeypress="handleEnter(event)">
-                <button class="btn" onclick="sendTyping()" style="width: 20%;">SEND</button>
+            <div class="input-group">
+                <input type="text" id="typer" class="kb-input" placeholder="Yahan type karein..." onkeypress="handleKey(event)">
+                <button class="btn" onclick="sendTyping()">SEND TEXT</button>
             </div>
             
-            <div class="hint">Click inside the image to move/click mouse on target PC.</div>
+            <p class="footer-note">Note: Screen par click karne se target PC par click hoga.</p>
         </div>
     </div>
 
@@ -150,35 +181,30 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
 
-        // Login Anonymously to bypass permission issues
+        // Sign in anonymously
         auth.signInAnonymously().then(() => {
-            document.getElementById('stat').innerText = "SYSTEM READY: Waiting for PC Stream...";
-        }).catch(err => {
-            document.getElementById('stat').innerText = "AUTH ERROR: Check Firebase Console Settings.";
-            console.error(err);
+            document.getElementById('stat').innerText = "CONNECTED: Stream ka intezar hai...";
+        }).catch(e => {
+            document.getElementById('stat').innerText = "AUTH ERROR: Settings check karein.";
         });
 
-        // Listen for Base64 Stream from Firestore
+        // Live Stream Listener
         db.collection("status").doc("view").onSnapshot((doc) => {
             if (doc.exists) {
                 const data = doc.data();
                 if (data.img_data) {
-                    // Update Image Source with Base64 String
                     document.getElementById('live-view').src = "data:image/jpeg;base64," + data.img_data;
-                    document.getElementById('stat').innerText = "LIVE STREAM: " + new Date().toLocaleTimeString();
+                    document.getElementById('stat').innerText = "LIVE | Last Sync: " + new Date().toLocaleTimeString();
                 }
             }
-        }, err => {
-            console.error("Stream Error:", err);
-            document.getElementById('stat').innerText = "FIRESTORE ERROR: Check Rules.";
         });
 
-        // Mouse Click Logic
+        // Click Handler
         function sendClick(e) {
             const img = document.getElementById('live-view');
             const rect = img.getBoundingClientRect();
             
-            // Map the click to our virtual 854x480 coordinate space
+            // Map click to 854x480 logic space
             const x = Math.round((e.clientX - rect.left) * (854 / rect.width));
             const y = Math.round((e.clientY - rect.top) * (480 / rect.height));
 
@@ -186,12 +212,10 @@
                 x: x,
                 y: y,
                 time: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => {
-                console.log(`Click Sent: ${x}, ${y}`);
             });
         }
 
-        // Special Keys Logic (Enter, Backspace, etc.)
+        // Keyboard Key Handler (Special/Text)
         function sendKey(key, type) {
             db.collection("remote_keys").doc("latest").set({
                 key: key,
@@ -200,27 +224,21 @@
             });
         }
 
-        // Text Typing Logic
+        // Typing Action
         function sendTyping() {
             const input = document.getElementById('typer');
             if (input.value) {
                 sendKey(input.value, 'text');
-                input.value = ""; // Clear after sending
+                input.value = "";
                 input.focus();
             }
         }
 
-        // Shortcut for Enter key in input box
-        function handleEnter(e) {
-            if (e.key === "Enter") {
+        // Handle Enter key on input field
+        function handleKey(e) {
+            if (e.key === 'Enter') {
                 sendTyping();
             }
-        }
-
-        // Force a UI refresh (doesn't affect python but clears broken img)
-        function forceRefresh() {
-            document.getElementById('live-view').src = "";
-            document.getElementById('stat').innerText = "Refreshing stream...";
         }
     </script>
 </body>

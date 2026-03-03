@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cloud Chrome Controller</title>
+    <!-- Firebase SDKs (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
     <style>
         body { background: #121212; color: #00ff00; font-family: 'Courier New', monospace; text-align: center; margin: 0; }
         .container { padding: 20px; }
@@ -16,18 +18,20 @@
             background: #000;
             display: block;
             margin: 0 auto;
+            min-height: 200px;
         }
         .status { margin: 10px; font-size: 14px; color: #888; }
-        .btn { background: #222; border: 1px solid #00ff00; color: #00ff00; padding: 10px 20px; cursor: pointer; }
+        .btn { background: #222; border: 1px solid #00ff00; color: #00ff00; padding: 10px 20px; cursor: pointer; margin-top: 10px; }
+        .btn:hover { background: #00ff00; color: #000; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2>STEALTH CHROME REMOTE</h2>
-        <div class="status" id="last-update">Waiting for update...</div>
+        <div class="status" id="last-update">Connecting to Firebase...</div>
         
         <div style="position: relative; display: inline-block;">
-            <!-- Chrome is set to 1280x720 in python script -->
+            <!-- Mapping to 1280x720 from python script -->
             <img id="view-canvas" src="" alt="Live View Loading..." onclick="sendClick(event)" width="1280" height="720">
         </div>
         
@@ -44,16 +48,27 @@
             appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
         };
 
-        firebase.initializeApp(firebaseConfig);
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        
-        // Correct Storage URL Format
-        const storageUrl = "https://firebasestorage.googleapis.com/v0/b/smsyy-f7bb7.firebasestorage.app/o/live_view.jpg?alt=media&t=";
+        const storage = firebase.storage();
+        const storageRef = storage.ref('live_view.jpg');
 
         function refreshImage() {
             const img = document.getElementById('view-canvas');
-            // Adding timestamp to prevent browser caching
-            img.src = storageUrl + Date.now();
+            const statusText = document.getElementById('last-update');
+            
+            // Get the proper download URL from Firebase Storage SDK
+            // This handles CORS and OpaqueResponseBlocking issues
+            storageRef.getDownloadURL()
+                .then((url) => {
+                    // Force browser to bypass cache using a timestamp
+                    img.src = url + "&t=" + Date.now();
+                })
+                .catch((error) => {
+                    console.error("Error fetching image:", error);
+                    statusText.innerText = "Error: Image not found or Permission denied.";
+                });
         }
 
         // Listen for status updates in Firestore to auto-refresh the image
@@ -62,6 +77,9 @@
                 document.getElementById('last-update').innerText = "Last Updated: " + new Date().toLocaleTimeString();
                 refreshImage();
             }
+        }, (error) => {
+            console.error("Firestore Error:", error);
+            document.getElementById('last-update').innerText = "Firestore Connection Error";
         });
 
         function sendClick(e) {
@@ -78,7 +96,7 @@
                 x: x,
                 y: y,
                 time: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            }).catch(err => console.error("Click Send Error:", err));
         }
 
         // Initial load

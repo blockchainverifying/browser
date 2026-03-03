@@ -2,146 +2,161 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>HVNC Remote Control Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Remote Controller</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase App and Database SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <style>
-        body { background: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
-        #header { background: #111; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #333; align-items: center; flex-wrap: wrap; }
-        #screen-container { position: relative; display: inline-block; width: 100%; text-align: center; margin-top: 10px; }
-        #remote-screen { border: 2px solid #333; cursor: crosshair; max-width: 90vw; height: auto; background: #050505; }
-        input, button, select { background: #222; color: #0f0; border: 1px solid #0f0; padding: 8px; border-radius: 4px; }
-        button:hover { background: #0f0; color: #000; cursor: pointer; }
-        .status { font-size: 12px; color: #888; }
-        .profile-section { border-left: 1px solid #444; padding-left: 10px; display: flex; gap: 5px; align-items: center; }
-        #log { position: fixed; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: #0a0; font-size: 10px; padding: 5px; border-top: 1px solid #333; height: 40px; overflow-y: scroll; }
-    </style>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 </head>
-<body>
+<body class="bg-slate-900 text-white min-h-screen p-4 md:p-8">
 
-<div id="header">
-    <input type="text" id="urlInput" placeholder="URL ya Search query...">
-    <button onclick="sendCommand('navigate')">Navigate</button>
-    <button onclick="sendCommand('type')">Type & Enter</button>
-    
-    <div class="profile-section">
-        <label>Select Profile:</label>
-        <select id="profileSelect">
-            <option value="">Scanning...</option>
-        </select>
-        <button onclick="switchProfile()" style="background: #a00; border-color: #f00; font-weight: bold;">Force Restart & Switch</button>
-    </div>
-    
-    <span class="status" id="status">Connecting...</span>
-</div>
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 border-b border-slate-700 pb-4">
+            <h1 class="text-3xl font-bold text-blue-400">Remote Browser Dashboard</h1>
+            <p class="text-slate-400">Control your Python controller.py script from here.</p>
+        </header>
 
-<div id="screen-container">
-    <img id="remote-screen" onclick="handleInteraction(event)" src="" alt="Waiting for target screen stream...">
-</div>
-
-<div id="log">Logs: App starting...</div>
-
-<script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
-        authDomain: "smsyy-f7bb7.firebaseapp.com",
-        projectId: "smsyy-f7bb7",
-        storageBucket: "smsyy-f7bb7.firebasestorage.app",
-        messagingSenderId: "199149027655",
-        appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const docRef = db.collection('artifacts').doc('smsyy-f7bb7').collection('public').doc('session_data');
-
-    const screenImg = document.getElementById('remote-screen');
-    const statusText = document.getElementById('status');
-    const profileSelect = document.getElementById('profileSelect');
-    const logBox = document.getElementById('log');
-
-    function log(msg) {
-        logBox.innerHTML += "<br>> " + msg;
-        logBox.scrollTop = logBox.scrollHeight;
-    }
-
-    // 1. Live Listen: Screen, Profiles aur Active State
-    docRef.onSnapshot((doc) => {
-        if (doc.exists) {
-            const data = doc.data();
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            // Screen Update
-            if (data.screenshot) {
-                screenImg.src = "data:image/jpeg;base64," + data.screenshot;
-                statusText.innerText = "LIVE - User Profile: " + (data.active_profile || 'Default');
-            }
+            <!-- Control Panel -->
+            <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <span class="mr-2">🎮</span> Send Commands
+                </h2>
+                
+                <!-- Navigation -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Target URL</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="urlInput" placeholder="https://google.com" class="bg-slate-700 border border-slate-600 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button onclick="sendCommand('navigate')" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-medium transition">Go</button>
+                    </div>
+                </div>
 
-            // Profiles Dropdown Update
-            if (data.profiles && data.profiles.length > 0) {
-                const currentVal = profileSelect.value;
-                // Only update if list has changed
-                if (profileSelect.options.length <= 1 || data.profiles.length !== profileSelect.options.length) {
-                    profileSelect.innerHTML = '';
-                    data.profiles.forEach(p => {
-                        const opt = document.createElement('option');
-                        opt.value = p;
-                        opt.innerText = p;
-                        profileSelect.appendChild(opt);
-                    });
-                    if (currentVal) profileSelect.value = currentVal;
-                    log("Profiles list updated from target.");
+                <!-- Typing -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-slate-400 mb-1">Type Text</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="typeInput" placeholder="Enter text to type..." class="bg-slate-700 border border-slate-600 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-green-500">
+                        <button onclick="sendCommand('type')" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-medium transition">Type</button>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="grid grid-cols-2 gap-4">
+                    <button onclick="sendCommand('screenshot')" class="bg-purple-600 hover:bg-purple-700 p-4 rounded-lg font-bold flex flex-col items-center">
+                        <span class="text-2xl mb-1">📸</span> Capture Screen
+                    </button>
+                    <button onclick="clearStatus()" class="bg-slate-700 hover:bg-slate-600 p-4 rounded-lg font-bold flex flex-col items-center">
+                        <span class="text-2xl mb-1">🧹</span> Clear Logs
+                    </button>
+                </div>
+            </div>
+
+            <!-- Status & Logs -->
+            <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
+                <h2 class="text-xl font-semibold mb-4 flex items-center">
+                    <span class="mr-2">📡</span> Live Status
+                </h2>
+                
+                <div id="statusContainer" class="space-y-4">
+                    <div class="p-3 bg-slate-900 rounded border-l-4 border-blue-500">
+                        <p class="text-xs text-slate-500 uppercase font-bold">Current Status</p>
+                        <p id="currentStatus" class="text-lg font-mono text-blue-300">Waiting for updates...</p>
+                    </div>
+                    
+                    <div class="p-3 bg-slate-900 rounded border-l-4 border-slate-500">
+                        <p class="text-xs text-slate-500 uppercase font-bold">Last Action</p>
+                        <p id="lastAction" class="text-sm font-mono">-</p>
+                    </div>
+
+                    <div class="p-3 bg-slate-900 rounded border-l-4 border-slate-500">
+                        <p class="text-xs text-slate-500 uppercase font-bold">Timestamp</p>
+                        <p id="lastTime" class="text-sm font-mono text-slate-400">N/A</p>
+                    </div>
+                </div>
+
+                <div id="errorBox" class="mt-4 p-3 bg-red-900/30 border border-red-900 rounded text-red-200 text-sm hidden">
+                    <strong>Error:</strong> <span id="errorText"></span>
+                </div>
+            </div>
+
+        </div>
+
+        <footer class="mt-8 text-center text-slate-500 text-sm">
+            Connected to: <span class="font-mono text-slate-400">smsyy-f7bb7</span>
+        </footer>
+    </div>
+
+    <script>
+        // Firebase Config (Must match your controller.py)
+        const firebaseConfig = {
+            databaseURL: "https://smsyy-f7bb7-default-rtdb.firebaseio.com"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Send Command Function
+        function sendCommand(action) {
+            const url = document.getElementById('urlInput').value;
+            const typeText = document.getElementById('typeInput').value;
+            
+            const taskData = {
+                action: action,
+                url: url || "",
+                typeText: typeText || "",
+                timestamp: Date.now()
+            };
+
+            // Firebase database update
+            database.ref('remote_control/task').set(taskData)
+                .then(() => {
+                    console.log("Command sent:", action);
+                    // Temporarily show sending status
+                    document.getElementById('currentStatus').innerText = "Sending " + action + "...";
+                })
+                .catch((error) => {
+                    showError(error.message);
+                });
+        }
+
+        // Listen for Status Updates from Python Script
+        database.ref('remote_control/status').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                document.getElementById('currentStatus').innerText = data.status.toUpperCase();
+                document.getElementById('lastAction').innerText = data.last_action || "-";
+                document.getElementById('lastTime').innerText = data.time || "N/A";
+                
+                // Visual feedback based on status
+                const statusBox = document.getElementById('currentStatus').parentElement;
+                if (data.status === 'completed') {
+                    statusBox.classList.replace('border-blue-500', 'border-green-500');
+                    statusBox.classList.replace('border-red-500', 'border-green-500');
+                    document.getElementById('errorBox').classList.add('hidden');
+                } else if (data.status === 'failed') {
+                    statusBox.classList.replace('border-blue-500', 'border-red-500');
+                    statusBox.classList.replace('border-green-500', 'border-red-500');
+                    showError(data.error || "Unknown script error");
                 }
             }
-        }
-    });
-
-    // 2. Profile Switch Command
-    function switchProfile() {
-        const selected = profileSelect.value;
-        if (!selected) return;
-        
-        log("Sending Switch Command for profile: " + selected);
-        statusText.innerText = "Killing Chrome & Copying Profile...";
-        docRef.update({
-            command: {
-                action: 'switch_profile',
-                profile_name: selected,
-                timestamp: Date.now()
-            }
         });
-    }
 
-    // 3. Mouse Click (Simulated at 1280x720)
-    function handleInteraction(e) {
-        const rect = screenImg.getBoundingClientRect();
-        const x = Math.round((e.clientX - rect.left) * (1280 / rect.width));
-        const y = Math.round((e.clientY - rect.top) * (720 / rect.height));
-
-        log("Click sent at X:" + x + " Y:" + y);
-        docRef.update({
-            command: { action: 'click', x: x, y: y, timestamp: Date.now() }
-        });
-    }
-
-    // 4. Navigation aur Typing
-    function sendCommand(type) {
-        const val = document.getElementById('urlInput').value;
-        const payload = { action: type, timestamp: Date.now() };
-        
-        if (type === 'navigate') {
-            if (!val) return;
-            payload.url = val;
-            log("Navigating to: " + val);
-        }
-        if (type === 'type') {
-            payload.text = val;
-            log("Typing text: " + val);
+        function showError(msg) {
+            const errorBox = document.getElementById('errorBox');
+            document.getElementById('errorText').innerText = msg;
+            errorBox.classList.remove('hidden');
         }
 
-        docRef.update({ command: payload });
-        document.getElementById('urlInput').value = '';
-    }
-</script>
-
+        function clearStatus() {
+            database.ref('remote_control/status').set({ status: 'idle', time: new Date().toISOString() });
+            database.ref('remote_control/task').set({});
+            document.getElementById('urlInput').value = "";
+            document.getElementById('typeInput').value = "";
+        }
+    </script>
 </body>
 </html>

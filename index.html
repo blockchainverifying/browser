@@ -3,159 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Browser Remote Controller</title>
+    <title>Browser Remote Control Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase App and Database SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        .stream-container { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; }
+        #liveStream { width: 100%; height: 100%; object-fit: contain; }
+        .log-container::-webkit-scrollbar { width: 4px; }
+        .log-container::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+    </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen p-4 md:p-8">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
 
-    <div class="max-w-4xl mx-auto">
-        <header class="mb-8 border-b border-slate-700 pb-4">
-            <h1 class="text-3xl font-bold text-blue-400">Remote Browser Dashboard</h1>
-            <p class="text-slate-400">Control your Python controller.py script from here.</p>
+    <div class="max-w-7xl mx-auto p-4 lg:p-8">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-slate-800 pb-6">
+            <div>
+                <h1 class="text-3xl font-extrabold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
+                    Stealth Commander
+                </h1>
+                <p class="text-slate-500 text-sm mt-1">Remote Headless Browser Management & Live Feed</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="statusIndicator" class="flex items-center gap-2 px-4 py-2 bg-slate-800 rounded-full border border-slate-700">
+                    <span class="relative flex h-3 w-3">
+                        <span id="pingPulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span id="pingDot" class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                    </span>
+                    <span id="statusText" class="text-xs font-bold uppercase tracking-widest text-slate-400">Offline</span>
+                </div>
+            </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
             
-            <!-- Control Panel -->
-            <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
-                <h2 class="text-xl font-semibold mb-4 flex items-center">
-                    <span class="mr-2">🎮</span> Send Commands
-                </h2>
+            <!-- Main Viewport (Stream) -->
+            <div class="lg:col-span-3 space-y-6">
+                <div class="stream-container rounded-2xl border border-slate-700 shadow-2xl group">
+                    <img id="liveStream" src="https://via.placeholder.com/1280x720/0f172a/94a3b8?text=Connecting+to+Remote+Service..." alt="Live Feed">
+                    
+                    <!-- Overlay Info -->
+                    <div class="absolute top-4 left-4 flex items-center gap-2">
+                        <span class="bg-red-600 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase shadow-lg">Live</span>
+                        <span id="resBadge" class="bg-slate-900/80 backdrop-blur-md text-slate-300 px-2 py-0.5 rounded text-[10px] border border-slate-700">1280x720</span>
+                    </div>
+
+                    <div class="absolute bottom-4 right-4">
+                        <p id="streamTime" class="text-[10px] font-mono text-slate-400 bg-black/50 px-2 py-1 rounded backdrop-blur-sm">--:--:--</p>
+                    </div>
+                </div>
                 
-                <!-- Navigation -->
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Target URL</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="urlInput" placeholder="https://google.com" class="bg-slate-700 border border-slate-600 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <button onclick="sendCommand('navigate')" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded font-medium transition">Go</button>
-                    </div>
-                </div>
-
-                <!-- Typing -->
-                <div class="mb-6">
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Type Text</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="typeInput" placeholder="Enter text to type..." class="bg-slate-700 border border-slate-600 rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-green-500">
-                        <button onclick="sendCommand('type')" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded font-medium transition">Type</button>
-                    </div>
-                </div>
-
                 <!-- Quick Actions -->
-                <div class="grid grid-cols-2 gap-4">
-                    <button onclick="sendCommand('screenshot')" class="bg-purple-600 hover:bg-purple-700 p-4 rounded-lg font-bold flex flex-col items-center">
-                        <span class="text-2xl mb-1">📸</span> Capture Screen
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <button onclick="sendCommand('click')" class="flex flex-col items-center justify-center p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all active:scale-95">
+                        <span class="text-blue-400 mb-1">🖱️</span>
+                        <span class="text-xs font-semibold">Center Click</span>
                     </button>
-                    <button onclick="clearStatus()" class="bg-slate-700 hover:bg-slate-600 p-4 rounded-lg font-bold flex flex-col items-center">
-                        <span class="text-2xl mb-1">🧹</span> Clear Logs
+                    <button onclick="sendCommand('screenshot')" class="flex flex-col items-center justify-center p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all active:scale-95">
+                        <span class="text-emerald-400 mb-1">📸</span>
+                        <span class="text-xs font-semibold">Take Shot</span>
+                    </button>
+                    <button onclick="window.location.reload()" class="flex flex-col items-center justify-center p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all active:scale-95">
+                        <span class="text-amber-400 mb-1">🔄</span>
+                        <span class="text-xs font-semibold">Refresh UI</span>
+                    </button>
+                    <button onclick="clearLogs()" class="flex flex-col items-center justify-center p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all active:scale-95">
+                        <span class="text-rose-400 mb-1">🧹</span>
+                        <span class="text-xs font-semibold">Clear Logs</span>
                     </button>
                 </div>
             </div>
 
-            <!-- Status & Logs -->
-            <div class="bg-slate-800 p-6 rounded-xl shadow-lg border border-slate-700">
-                <h2 class="text-xl font-semibold mb-4 flex items-center">
-                    <span class="mr-2">📡</span> Live Status
-                </h2>
-                
-                <div id="statusContainer" class="space-y-4">
-                    <div class="p-3 bg-slate-900 rounded border-l-4 border-blue-500">
-                        <p class="text-xs text-slate-500 uppercase font-bold">Current Status</p>
-                        <p id="currentStatus" class="text-lg font-mono text-blue-300">Waiting for updates...</p>
-                    </div>
-                    
-                    <div class="p-3 bg-slate-900 rounded border-l-4 border-slate-500">
-                        <p class="text-xs text-slate-500 uppercase font-bold">Last Action</p>
-                        <p id="lastAction" class="text-sm font-mono">-</p>
-                    </div>
-
-                    <div class="p-3 bg-slate-900 rounded border-l-4 border-slate-500">
-                        <p class="text-xs text-slate-500 uppercase font-bold">Timestamp</p>
-                        <p id="lastTime" class="text-sm font-mono text-slate-400">N/A</p>
+            <!-- Sidebar Controls -->
+            <div class="space-y-6">
+                <!-- Navigation -->
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-3">Target Address</label>
+                    <div class="flex flex-col gap-3">
+                        <input type="text" id="urlInput" placeholder="https://www.google.com" 
+                            class="bg-slate-900 border border-slate-700 rounded-lg p-3 w-full text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        <button onclick="sendCommand('navigate')" 
+                            class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-lg font-bold shadow-lg shadow-blue-900/20 transition-all active:translate-y-0.5">
+                            Navigate
+                        </button>
                     </div>
                 </div>
 
-                <div id="errorBox" class="mt-4 p-3 bg-red-900/30 border border-red-900 rounded text-red-200 text-sm hidden">
-                    <strong>Error:</strong> <span id="errorText"></span>
+                <!-- Text Injection -->
+                <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-3">Key Injection</label>
+                    <div class="flex flex-col gap-3">
+                        <textarea id="typeInput" rows="3" placeholder="Enter text to type..." 
+                            class="bg-slate-900 border border-slate-700 rounded-lg p-3 w-full text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all resize-none"></textarea>
+                        <button onclick="sendCommand('type')" 
+                            class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-lg font-bold shadow-lg shadow-emerald-900/20 transition-all active:translate-y-0.5">
+                            Type Text
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Log Console -->
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                    <h3 class="text-[10px] font-black text-slate-600 uppercase mb-3 flex justify-between">
+                        <span>Terminal Logs</span>
+                        <span id="logCount">0 events</span>
+                    </h3>
+                    <div id="logBox" class="log-container text-[10px] font-mono h-48 overflow-y-auto space-y-2 text-slate-500">
+                        <div class="text-blue-500">> System Ready...</div>
+                    </div>
                 </div>
             </div>
 
         </div>
-
-        <footer class="mt-8 text-center text-slate-500 text-sm">
-            Connected to: <span class="font-mono text-slate-400">smsyy-f7bb7</span>
-        </footer>
     </div>
 
     <script>
-        // Firebase Config (Must match your controller.py)
-        const firebaseConfig = {
-            databaseURL: "https://smsyy-f7bb7-default-rtdb.firebaseio.com"
-        };
-
-        // Initialize Firebase
+        // Firebase initialization (Matching your setup)
+        const firebaseConfig = { databaseURL: "https://smsyy-f7bb7-default-rtdb.firebaseio.com" };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // Send Command Function
-        function sendCommand(action) {
-            const url = document.getElementById('urlInput').value;
-            const typeText = document.getElementById('typeInput').value;
-            
-            const taskData = {
-                action: action,
-                url: url || "",
-                typeText: typeText || "",
-                timestamp: Date.now()
-            };
+        let logCounter = 0;
+        let lastStreamTime = Date.now();
 
-            // Firebase database update
-            database.ref('remote_control/task').set(taskData)
-                .then(() => {
-                    console.log("Command sent:", action);
-                    // Temporarily show sending status
-                    document.getElementById('currentStatus').innerText = "Sending " + action + "...";
-                })
-                .catch((error) => {
-                    showError(error.message);
-                });
-        }
-
-        // Listen for Status Updates from Python Script
-        database.ref('remote_control/status').on('value', (snapshot) => {
+        // 1. Sync Live Stream from Firebase
+        database.ref('remote_control/stream').on('value', (snapshot) => {
             const data = snapshot.val();
-            if (data) {
-                document.getElementById('currentStatus').innerText = data.status.toUpperCase();
-                document.getElementById('lastAction').innerText = data.last_action || "-";
-                document.getElementById('lastTime').innerText = data.time || "N/A";
+            if (data && data.image) {
+                document.getElementById('liveStream').src = data.image;
                 
-                // Visual feedback based on status
-                const statusBox = document.getElementById('currentStatus').parentElement;
-                if (data.status === 'completed') {
-                    statusBox.classList.replace('border-blue-500', 'border-green-500');
-                    statusBox.classList.replace('border-red-500', 'border-green-500');
-                    document.getElementById('errorBox').classList.add('hidden');
-                } else if (data.status === 'failed') {
-                    statusBox.classList.replace('border-blue-500', 'border-red-500');
-                    statusBox.classList.replace('border-green-500', 'border-red-500');
-                    showError(data.error || "Unknown script error");
+                // Update time display
+                if (data.timestamp) {
+                    const timeStr = new Date(data.timestamp).toLocaleTimeString();
+                    document.getElementById('streamTime').innerText = `Sync: ${timeStr}`;
                 }
+                
+                lastStreamTime = Date.now();
+                setOnline(true);
             }
         });
 
-        function showError(msg) {
-            const errorBox = document.getElementById('errorBox');
-            document.getElementById('errorText').innerText = msg;
-            errorBox.classList.remove('hidden');
+        // 2. Sync Execution Status Logs
+        database.ref('remote_control/status').on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                const statusColor = data.status === 'completed' ? 'text-emerald-400' : 'text-rose-400';
+                addLog(`<span class="text-slate-300">[${data.last_action}]</span> <span class="${statusColor}">${data.status}</span>`);
+            }
+        });
+
+        // 3. Heartbeat Check (If stream stops for 10s, show offline)
+        setInterval(() => {
+            if (Date.now() - lastStreamTime > 10000) {
+                setOnline(false);
+            }
+        }, 5000);
+
+        function sendCommand(action) {
+            const url = document.getElementById('urlInput').value;
+            const text = document.getElementById('typeInput').value;
+            
+            database.ref('remote_control/task').set({
+                action: action,
+                url: url,
+                typeText: text,
+                timestamp: Date.now()
+            });
+            
+            addLog(`Command issued: <b class="text-blue-400">${action}</b>`);
         }
 
-        function clearStatus() {
-            database.ref('remote_control/status').set({ status: 'idle', time: new Date().toISOString() });
-            database.ref('remote_control/task').set({});
-            document.getElementById('urlInput').value = "";
-            document.getElementById('typeInput').value = "";
+        function addLog(html) {
+            const box = document.getElementById('logBox');
+            const entry = document.createElement('div');
+            const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            entry.innerHTML = `<span class="text-slate-700">${time}</span> ${html}`;
+            box.appendChild(entry);
+            box.scrollTop = box.scrollHeight;
+            
+            logCounter++;
+            document.getElementById('logCount').innerText = `${logCounter} events`;
+        }
+
+        function clearLogs() {
+            document.getElementById('logBox').innerHTML = '<div class="text-blue-500">> Console Cleared...</div>';
+            logCounter = 0;
+            document.getElementById('logCount').innerText = `0 events`;
+        }
+
+        function setOnline(isOnline) {
+            const badge = document.getElementById('statusText');
+            const dot = document.getElementById('pingDot');
+            const pulse = document.getElementById('pingPulse');
+            
+            if (isOnline) {
+                badge.innerText = "Online";
+                badge.className = "text-xs font-bold uppercase tracking-widest text-emerald-400";
+                dot.className = "relative inline-flex rounded-full h-3 w-3 bg-emerald-500";
+                pulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+            } else {
+                badge.innerText = "Offline";
+                badge.className = "text-xs font-bold uppercase tracking-widest text-slate-400";
+                dot.className = "relative inline-flex rounded-full h-3 w-3 bg-red-500";
+                pulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75";
+            }
         }
     </script>
 </body>

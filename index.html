@@ -9,11 +9,12 @@
         body { background: #000; color: #0f0; font-family: 'Courier New', monospace; margin: 0; overflow: hidden; }
         #header { background: #111; padding: 10px; display: flex; gap: 10px; border-bottom: 1px solid #333; align-items: center; flex-wrap: wrap; }
         #screen-container { position: relative; display: inline-block; width: 100%; text-align: center; margin-top: 10px; }
-        #remote-screen { border: 2px solid #333; cursor: crosshair; max-width: 90vw; height: auto; }
+        #remote-screen { border: 2px solid #333; cursor: crosshair; max-width: 90vw; height: auto; background: #050505; }
         input, button, select { background: #222; color: #0f0; border: 1px solid #0f0; padding: 8px; border-radius: 4px; }
         button:hover { background: #0f0; color: #000; cursor: pointer; }
         .status { font-size: 12px; color: #888; }
         .profile-section { border-left: 1px solid #444; padding-left: 10px; display: flex; gap: 5px; align-items: center; }
+        #log { position: fixed; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: #0a0; font-size: 10px; padding: 5px; border-top: 1px solid #333; height: 40px; overflow-y: scroll; }
     </style>
 </head>
 <body>
@@ -24,19 +25,21 @@
     <button onclick="sendCommand('type')">Type & Enter</button>
     
     <div class="profile-section">
-        <label>Profiles:</label>
+        <label>Select Profile:</label>
         <select id="profileSelect">
             <option value="">Scanning...</option>
         </select>
-        <button onclick="switchProfile()" style="background: #a00; border-color: #f00;">Switch & Restart</button>
+        <button onclick="switchProfile()" style="background: #a00; border-color: #f00; font-weight: bold;">Force Restart & Switch</button>
     </div>
     
     <span class="status" id="status">Connecting...</span>
 </div>
 
 <div id="screen-container">
-    <img id="remote-screen" onclick="handleInteraction(event)" src="" alt="Waiting for target screen...">
+    <img id="remote-screen" onclick="handleInteraction(event)" src="" alt="Waiting for target screen stream...">
 </div>
+
+<div id="log">Logs: App starting...</div>
 
 <script>
     const firebaseConfig = {
@@ -55,8 +58,14 @@
     const screenImg = document.getElementById('remote-screen');
     const statusText = document.getElementById('status');
     const profileSelect = document.getElementById('profileSelect');
+    const logBox = document.getElementById('log');
 
-    // 1. Listen for Live Updates (Screen + Profiles)
+    function log(msg) {
+        logBox.innerHTML += "<br>> " + msg;
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // 1. Live Listen: Screen, Profiles aur Active State
     docRef.onSnapshot((doc) => {
         if (doc.exists) {
             const data = doc.data();
@@ -64,30 +73,35 @@
             // Screen Update
             if (data.screenshot) {
                 screenImg.src = "data:image/jpeg;base64," + data.screenshot;
-                statusText.innerText = "Online - Profile: " + (data.active_profile || 'Default');
+                statusText.innerText = "LIVE - User Profile: " + (data.active_profile || 'Default');
             }
 
-            // Profiles List Update
+            // Profiles Dropdown Update
             if (data.profiles && data.profiles.length > 0) {
                 const currentVal = profileSelect.value;
-                profileSelect.innerHTML = '';
-                data.profiles.forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p;
-                    opt.innerText = p;
-                    profileSelect.appendChild(opt);
-                });
-                if (currentVal) profileSelect.value = currentVal;
+                // Only update if list has changed
+                if (profileSelect.options.length <= 1 || data.profiles.length !== profileSelect.options.length) {
+                    profileSelect.innerHTML = '';
+                    data.profiles.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p;
+                        opt.innerText = p;
+                        profileSelect.appendChild(opt);
+                    });
+                    if (currentVal) profileSelect.value = currentVal;
+                    log("Profiles list updated from target.");
+                }
             }
         }
     });
 
-    // 2. Switch Profile Command
+    // 2. Profile Switch Command
     function switchProfile() {
         const selected = profileSelect.value;
         if (!selected) return;
         
-        statusText.innerText = "Switching profile... Target may restart.";
+        log("Sending Switch Command for profile: " + selected);
+        statusText.innerText = "Killing Chrome & Copying Profile...";
         docRef.update({
             command: {
                 action: 'switch_profile',
@@ -97,23 +111,32 @@
         });
     }
 
-    // 3. Mouse Interaction
+    // 3. Mouse Click (Simulated at 1280x720)
     function handleInteraction(e) {
         const rect = screenImg.getBoundingClientRect();
         const x = Math.round((e.clientX - rect.left) * (1280 / rect.width));
         const y = Math.round((e.clientY - rect.top) * (720 / rect.height));
 
+        log("Click sent at X:" + x + " Y:" + y);
         docRef.update({
             command: { action: 'click', x: x, y: y, timestamp: Date.now() }
         });
     }
 
-    // 4. Navigation/Type
+    // 4. Navigation aur Typing
     function sendCommand(type) {
         const val = document.getElementById('urlInput').value;
         const payload = { action: type, timestamp: Date.now() };
-        if (type === 'navigate') payload.url = val;
-        if (type === 'type') payload.text = val;
+        
+        if (type === 'navigate') {
+            if (!val) return;
+            payload.url = val;
+            log("Navigating to: " + val);
+        }
+        if (type === 'type') {
+            payload.text = val;
+            log("Typing text: " + val);
+        }
 
         docRef.update({ command: payload });
         document.getElementById('urlInput').value = '';

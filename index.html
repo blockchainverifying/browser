@@ -8,32 +8,134 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <style>
-        body { background: #000; color: #0f0; font-family: monospace; text-align: center; margin: 0; overflow-x: hidden; }
+        body { 
+            background: #000; 
+            color: #0f0; 
+            font-family: 'Courier New', monospace; 
+            text-align: center; 
+            margin: 0; 
+            overflow-x: hidden; 
+        }
         .container { padding: 10px; }
+        
+        /* Viewport Container */
+        .viewport-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 0 auto;
+            border: 2px solid #0f0;
+            background: #111;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+        }
+        
         #live-view { 
-            border: 1px solid #0f0; 
             width: 100%; 
             max-width: 854px; 
             cursor: crosshair;
-            background: #111;
+            display: block;
         }
-        .status { font-size: 12px; color: #666; margin-bottom: 5px; }
-        .controls { margin-top: 10px; }
+
+        .status-bar { 
+            font-size: 14px; 
+            color: #0f0; 
+            margin-bottom: 10px; 
+            background: #1a1a1a;
+            padding: 5px;
+            border-bottom: 1px solid #333;
+        }
+
+        /* Controls Section */
+        .controls-panel {
+            margin-top: 15px;
+            padding: 15px;
+            background: #111;
+            max-width: 854px;
+            margin-left: auto;
+            margin-right: auto;
+            border: 1px solid #333;
+        }
+
+        .kb-input { 
+            background: #000; 
+            border: 1px solid #0f0; 
+            color: #0f0; 
+            padding: 12px; 
+            width: 70%; 
+            font-family: inherit;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .btn { 
+            background: #1a1a1a; 
+            border: 1px solid #0f0; 
+            color: #0f0; 
+            padding: 10px 15px; 
+            cursor: pointer; 
+            font-family: inherit;
+            text-transform: uppercase;
+            transition: 0.2s;
+            margin: 2px;
+        }
+        
+        .btn:hover { background: #0f0; color: #000; }
+        .btn:active { transform: scale(0.95); }
+
+        .special-keys {
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-special {
+            border-color: #ff8800;
+            color: #ff8800;
+        }
+        
+        .btn-special:hover {
+            background: #ff8800;
+            color: #000;
+        }
+
+        .hint {
+            font-size: 11px;
+            color: #555;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h3>FIRESTORE BASE64 STREAM</h3>
-        <div class="status" id="stat">Connecting to Firestore...</div>
+        <div class="status-bar" id="stat">Initializing Firebase Connection...</div>
         
-        <img id="live-view" src="" alt="Waiting for Frame..." onclick="sendClick(event)">
+        <div class="viewport-wrapper">
+            <img id="live-view" src="" alt="STREAM OFFLINE" onclick="sendClick(event)">
+        </div>
         
-        <div class="controls">
-            <small>Click on image to control PC</small>
+        <div class="controls-panel">
+            <!-- Special Function Keys -->
+            <div class="special-keys">
+                <button class="btn btn-special" onclick="sendKey('enter', 'special')">⏎ ENTER</button>
+                <button class="btn btn-special" onclick="sendKey('backspace', 'special')">⌫ BACKSPACE</button>
+                <button class="btn btn-special" onclick="sendKey('tab', 'special')">⇥ TAB</button>
+                <button class="btn btn-special" onclick="sendKey('esc', 'special')">ESC</button>
+                <button class="btn" onclick="forceRefresh()">↻ REFRESH</button>
+            </div>
+
+            <!-- Typing Interface -->
+            <div style="display: flex; gap: 5px; justify-content: center;">
+                <input type="text" id="typer" class="kb-input" placeholder="Type text to send to PC..." onkeypress="handleEnter(event)">
+                <button class="btn" onclick="sendTyping()" style="width: 20%;">SEND</button>
+            </div>
+            
+            <div class="hint">Click inside the image to move/click mouse on target PC.</div>
         </div>
     </div>
 
     <script>
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
             authDomain: "smsyy-f7bb7.firebaseapp.com",
@@ -43,31 +145,40 @@
             appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
         };
 
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
 
+        // Login Anonymously to bypass permission issues
         auth.signInAnonymously().then(() => {
-            document.getElementById('stat').innerText = "Logged in. Waiting for PC...";
+            document.getElementById('stat').innerText = "SYSTEM READY: Waiting for PC Stream...";
+        }).catch(err => {
+            document.getElementById('stat').innerText = "AUTH ERROR: Check Firebase Console Settings.";
+            console.error(err);
         });
 
-        // Listen for Base64 Data in Firestore
+        // Listen for Base64 Stream from Firestore
         db.collection("status").doc("view").onSnapshot((doc) => {
             if (doc.exists) {
                 const data = doc.data();
                 if (data.img_data) {
-                    // Direct Base64 rendering
+                    // Update Image Source with Base64 String
                     document.getElementById('live-view').src = "data:image/jpeg;base64," + data.img_data;
-                    document.getElementById('stat').innerText = "Live: " + new Date().toLocaleTimeString();
+                    document.getElementById('stat').innerText = "LIVE STREAM: " + new Date().toLocaleTimeString();
                 }
             }
+        }, err => {
+            console.error("Stream Error:", err);
+            document.getElementById('stat').innerText = "FIRESTORE ERROR: Check Rules.";
         });
 
+        // Mouse Click Logic
         function sendClick(e) {
             const img = document.getElementById('live-view');
             const rect = img.getBoundingClientRect();
             
-            // Map click to 854x480 coordinate space
+            // Map the click to our virtual 854x480 coordinate space
             const x = Math.round((e.clientX - rect.left) * (854 / rect.width));
             const y = Math.round((e.clientY - rect.top) * (480 / rect.height));
 
@@ -75,7 +186,41 @@
                 x: x,
                 y: y,
                 time: firebase.firestore.FieldValue.serverTimestamp()
-            }).then(() => console.log("Click registered"));
+            }).then(() => {
+                console.log(`Click Sent: ${x}, ${y}`);
+            });
+        }
+
+        // Special Keys Logic (Enter, Backspace, etc.)
+        function sendKey(key, type) {
+            db.collection("remote_keys").doc("latest").set({
+                key: key,
+                type: type,
+                time: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+
+        // Text Typing Logic
+        function sendTyping() {
+            const input = document.getElementById('typer');
+            if (input.value) {
+                sendKey(input.value, 'text');
+                input.value = ""; // Clear after sending
+                input.focus();
+            }
+        }
+
+        // Shortcut for Enter key in input box
+        function handleEnter(e) {
+            if (e.key === "Enter") {
+                sendTyping();
+            }
+        }
+
+        // Force a UI refresh (doesn't affect python but clears broken img)
+        function forceRefresh() {
+            document.getElementById('live-view').src = "";
+            document.getElementById('stat').innerText = "Refreshing stream...";
         }
     </script>
 </body>

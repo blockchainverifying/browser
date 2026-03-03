@@ -3,39 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Chrome Controller</title>
-    <!-- Firebase SDKs (Compat Version) -->
+    <title>Base64 Remote Control</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
     <style>
-        body { background: #121212; color: #00ff00; font-family: 'Courier New', monospace; text-align: center; margin: 0; }
-        .container { padding: 20px; }
-        #view-canvas { 
-            border: 2px solid #333; 
-            max-width: 95vw; 
-            cursor: crosshair; 
-            background: #000;
-            display: block;
-            margin: 0 auto;
-            min-height: 200px;
+        body { background: #000; color: #0f0; font-family: monospace; text-align: center; margin: 0; overflow-x: hidden; }
+        .container { padding: 10px; }
+        #live-view { 
+            border: 1px solid #0f0; 
+            width: 100%; 
+            max-width: 854px; 
+            cursor: crosshair;
+            background: #111;
         }
-        .status { margin: 10px; font-size: 14px; color: #888; }
-        .btn { background: #222; border: 1px solid #00ff00; color: #00ff00; padding: 10px 20px; cursor: pointer; margin-top: 10px; }
-        .btn:hover { background: #00ff00; color: #000; }
+        .status { font-size: 12px; color: #666; margin-bottom: 5px; }
+        .controls { margin-top: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>STEALTH CHROME REMOTE</h2>
-        <div class="status" id="last-update">Connecting to Firebase...</div>
+        <h3>FIRESTORE BASE64 STREAM</h3>
+        <div class="status" id="stat">Connecting to Firestore...</div>
         
-        <div style="position: relative; display: inline-block;">
-            <!-- Mapping to 1280x720 from python script -->
-            <img id="view-canvas" src="" alt="Live View Loading..." onclick="sendClick(event)" width="1280" height="720">
+        <img id="live-view" src="" alt="Waiting for Frame..." onclick="sendClick(event)">
+        
+        <div class="controls">
+            <small>Click on image to control PC</small>
         </div>
-        
-        <p><button class="btn" onclick="refreshImage()">Force Refresh</button></p>
     </div>
 
     <script>
@@ -48,59 +43,40 @@
             appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
         };
 
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
+        firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        const storage = firebase.storage();
-        const storageRef = storage.ref('live_view.jpg');
+        const auth = firebase.auth();
 
-        function refreshImage() {
-            const img = document.getElementById('view-canvas');
-            const statusText = document.getElementById('last-update');
-            
-            // Get the proper download URL from Firebase Storage SDK
-            // This handles CORS and OpaqueResponseBlocking issues
-            storageRef.getDownloadURL()
-                .then((url) => {
-                    // Force browser to bypass cache using a timestamp
-                    img.src = url + "&t=" + Date.now();
-                })
-                .catch((error) => {
-                    console.error("Error fetching image:", error);
-                    statusText.innerText = "Error: Image not found or Permission denied.";
-                });
-        }
+        auth.signInAnonymously().then(() => {
+            document.getElementById('stat').innerText = "Logged in. Waiting for PC...";
+        });
 
-        // Listen for status updates in Firestore to auto-refresh the image
+        // Listen for Base64 Data in Firestore
         db.collection("status").doc("view").onSnapshot((doc) => {
             if (doc.exists) {
-                document.getElementById('last-update').innerText = "Last Updated: " + new Date().toLocaleTimeString();
-                refreshImage();
+                const data = doc.data();
+                if (data.img_data) {
+                    // Direct Base64 rendering
+                    document.getElementById('live-view').src = "data:image/jpeg;base64," + data.img_data;
+                    document.getElementById('stat').innerText = "Live: " + new Date().toLocaleTimeString();
+                }
             }
-        }, (error) => {
-            console.error("Firestore Error:", error);
-            document.getElementById('last-update').innerText = "Firestore Connection Error";
         });
 
         function sendClick(e) {
-            const img = document.getElementById('view-canvas');
+            const img = document.getElementById('live-view');
             const rect = img.getBoundingClientRect();
             
-            // Map click from displayed size to actual 1280x720 coordinates
-            const x = Math.round((e.clientX - rect.left) * (1280 / rect.width));
-            const y = Math.round((e.clientY - rect.top) * (720 / rect.height));
+            // Map click to 854x480 coordinate space
+            const x = Math.round((e.clientX - rect.left) * (854 / rect.width));
+            const y = Math.round((e.clientY - rect.top) * (480 / rect.height));
 
-            console.log("Sending click:", x, y);
-            
             db.collection("remote_clicks").doc("latest").set({
                 x: x,
                 y: y,
                 time: firebase.firestore.FieldValue.serverTimestamp()
-            }).catch(err => console.error("Click Send Error:", err));
+            }).then(() => console.log("Click registered"));
         }
-
-        // Initial load
-        refreshImage();
     </script>
 </body>
 </html>

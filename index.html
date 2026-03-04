@@ -5,438 +5,403 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Remote Control Panel</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 
 <style>
-  :root {
-    --bg:       #080c10;
-    --panel:    #0d1117;
-    --border:   #1a2a1a;
-    --green:    #00ff88;
-    --green2:   #00cc66;
-    --red:      #ff3355;
-    --yellow:   #ffcc00;
-    --dim:      #334433;
-    --text:     #c8ffd4;
-    --muted:    #4a6650;
-    --glow:     0 0 12px #00ff8866;
-  }
+:root {
+  --bg:     #080c10;
+  --panel:  #0d1117;
+  --border: #1a2a1a;
+  --green:  #00ff88;
+  --green2: #00cc66;
+  --red:    #ff3355;
+  --yellow: #ffcc00;
+  --dim:    #334433;
+  --text:   #c8ffd4;
+  --muted:  #4a6650;
+  --glow:   0 0 12px #00ff8866;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:'Rajdhani',sans-serif;
+  min-height:100vh; overflow-x:hidden;
+}
+body::before{
+  content:''; position:fixed; inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,100,.012) 2px,rgba(0,255,100,.012) 4px);
+  pointer-events:none; z-index:9999;
+}
+body::after{
+  content:''; position:fixed; inset:0;
+  background-image:
+    linear-gradient(rgba(0,255,100,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,255,100,.025) 1px,transparent 1px);
+  background-size:44px 44px; pointer-events:none; z-index:0;
+}
 
-  * { margin:0; padding:0; box-sizing:border-box; }
+.wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:20px;}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Rajdhani', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+/* HEADER */
+header{
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:22px;
+}
+.logo{
+  font-family:'Share Tech Mono',monospace;
+  font-size:1rem;color:var(--green);letter-spacing:3px;
+}
+.logo span{color:var(--muted);}
+.hdr-badges{display:flex;gap:10px;align-items:center;}
+.badge{
+  display:flex;align-items:center;gap:6px;
+  font-family:'Share Tech Mono',monospace;font-size:.7rem;color:var(--muted);
+  background:#0a160a;border:1px solid var(--dim);padding:5px 12px;border-radius:2px;
+}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:.3s;}
+.badge.live .dot{background:var(--green);box-shadow:var(--glow);animation:pulse 1.4s infinite;}
+.badge.live{color:var(--green);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-  /* scanline overlay */
-  body::before {
-    content:'';
-    position:fixed; inset:0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,255,100,0.015) 2px,
-      rgba(0,255,100,0.015) 4px
-    );
-    pointer-events:none;
-    z-index:9999;
-  }
+/* LAYOUT */
+.main-grid{
+  display:grid;
+  grid-template-columns:1fr 320px;
+  gap:16px;
+}
 
-  /* grid bg */
-  body::after {
-    content:'';
-    position:fixed; inset:0;
-    background-image:
-      linear-gradient(rgba(0,255,100,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,255,100,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events:none;
-    z-index:0;
-  }
+/* ── VIEWER ── */
+.viewer-section{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:3px;overflow:hidden;
+}
+.viewer-toolbar{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;background:#060e08;
+  border-bottom:1px solid var(--border);
+  flex-wrap:wrap;
+}
+.sec-label{
+  font-size:.65rem;letter-spacing:3px;
+  text-transform:uppercase;color:var(--muted);
+  margin-right:auto;
+}
+.viewer-wrap{
+  position:relative;background:#000;
+  min-height:400px;cursor:none;
+  display:flex;align-items:center;justify-content:center;
+}
+#screen-canvas{
+  display:block;max-width:100%;
+  cursor:none;
+}
+.cursor-dot{
+  position:absolute;
+  width:12px;height:12px;
+  border:2px solid var(--green);
+  border-radius:50%;
+  pointer-events:none;
+  transform:translate(-50%,-50%);
+  transition:left .05s,top .05s;
+  box-shadow:var(--glow);
+}
+.no-stream{
+  text-align:center;padding:60px 20px;
+  font-family:'Share Tech Mono',monospace;
+  color:var(--muted);font-size:.85rem;letter-spacing:1px;
+}
+.no-stream .blink{animation:blink 1s step-end infinite;}
+@keyframes blink{50%{opacity:0}}
 
-  .wrap { position:relative; z-index:1; max-width:1000px; margin:0 auto; padding:24px 20px; }
+/* connect bar */
+.connect-bar{
+  display:flex;gap:8px;align-items:center;padding:12px 16px;
+  border-bottom:1px solid var(--border);background:#060e08;
+}
+.connect-bar input{
+  flex:1;background:#060e08;border:1px solid var(--dim);
+  color:var(--text);font-family:'Share Tech Mono',monospace;
+  font-size:.8rem;padding:8px 12px;border-radius:2px;outline:none;
+}
+.connect-bar input:focus{border-color:var(--green);}
 
-  /* ── HEADER ── */
-  header {
-    display:flex; align-items:center; justify-content:space-between;
-    border-bottom: 1px solid var(--border);
-    padding-bottom:16px; margin-bottom:28px;
-  }
-  .logo {
-    font-family:'Share Tech Mono', monospace;
-    font-size:1.1rem; color:var(--green);
-    letter-spacing:3px; text-transform:uppercase;
-  }
-  .logo span { color:var(--muted); }
-  .conn-badge {
-    display:flex; align-items:center; gap:8px;
-    font-family:'Share Tech Mono', monospace;
-    font-size:.75rem; color:var(--muted);
-    background:#0a160a; border:1px solid var(--dim);
-    padding:6px 14px; border-radius:2px;
-  }
-  .conn-badge .dot {
-    width:8px; height:8px; border-radius:50%;
-    background:var(--muted); transition:.3s;
-  }
-  .conn-badge.live .dot {
-    background:var(--green);
-    box-shadow: var(--glow);
-    animation: pulse 1.4s infinite;
-  }
-  .conn-badge.live { color:var(--green); border-color:var(--dim); }
+/* keyboard input */
+.kb-bar{
+  display:flex;gap:8px;padding:10px 16px;
+  background:#060e08;border-top:1px solid var(--border);
+}
+.kb-bar input{
+  flex:1;background:#060e08;border:1px solid var(--dim);
+  color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.95rem;
+  padding:8px 12px;border-radius:2px;outline:none;
+}
+.kb-bar input:focus{border-color:var(--green);}
 
-  @keyframes pulse {
-    0%,100%{ opacity:1; } 50%{ opacity:.4; }
-  }
+/* ── RIGHT PANEL ── */
+.side-panel{display:flex;flex-direction:column;gap:14px;}
 
-  /* ── STATS ROW ── */
-  .stats {
-    display:grid; grid-template-columns:repeat(3,1fr);
-    gap:12px; margin-bottom:28px;
-  }
-  .stat-box {
-    background:var(--panel);
-    border:1px solid var(--border);
-    padding:16px 20px; border-radius:3px;
-    position:relative; overflow:hidden;
-  }
-  .stat-box::before {
-    content:''; position:absolute;
-    top:0; left:0; right:0; height:2px;
-    background: linear-gradient(90deg, var(--green), transparent);
-  }
-  .stat-label {
-    font-size:.7rem; letter-spacing:2px;
-    text-transform:uppercase; color:var(--muted);
-    margin-bottom:6px;
-  }
-  .stat-val {
-    font-family:'Share Tech Mono', monospace;
-    font-size:2rem; color:var(--green);
-    text-shadow: var(--glow);
-  }
+.card{
+  background:var(--panel);border:1px solid var(--border);
+  border-radius:3px;overflow:hidden;
+}
+.card-head{
+  padding:10px 16px;background:#060e08;
+  border-bottom:1px solid var(--border);
+  font-size:.65rem;letter-spacing:3px;
+  text-transform:uppercase;color:var(--muted);
+}
 
-  /* ── BROADCAST BAR ── */
-  .broadcast {
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:3px;
-    padding:20px; margin-bottom:28px;
-  }
-  .section-label {
-    font-size:.7rem; letter-spacing:3px;
-    text-transform:uppercase; color:var(--muted);
-    margin-bottom:14px;
-  }
-  .bcast-row {
-    display:grid; grid-template-columns:1fr 1fr auto auto;
-    gap:10px; align-items:center;
-  }
-  input, select {
-    background:#060e08;
-    border:1px solid var(--dim);
-    color:var(--text);
-    font-family:'Rajdhani', sans-serif;
-    font-size:1rem;
-    padding:10px 14px;
-    border-radius:2px;
-    outline:none;
-    transition: border-color .2s;
-  }
-  input:focus, select:focus { border-color:var(--green); }
-  input::placeholder { color:var(--muted); }
-  select option { background:#0d1117; }
+/* stats */
+.stats-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:1px;
+  background:var(--border);
+}
+.stat{
+  background:var(--panel);padding:14px 16px;
+}
+.stat-l{font-size:.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
+.stat-v{
+  font-family:'Share Tech Mono',monospace;
+  font-size:1.6rem;color:var(--green);
+  text-shadow:var(--glow);
+}
 
-  /* ── BUTTONS ── */
-  .btn {
-    font-family:'Rajdhani', sans-serif;
-    font-weight:700; font-size:.85rem;
-    letter-spacing:2px; text-transform:uppercase;
-    padding:10px 20px; border-radius:2px;
-    border:none; cursor:pointer;
-    transition: all .15s;
-    white-space:nowrap;
-  }
-  .btn-lock {
-    background: transparent;
-    border:1px solid var(--red);
-    color:var(--red);
-  }
-  .btn-lock:hover {
-    background:var(--red);
-    color:#000;
-    box-shadow: 0 0 16px #ff335566;
-  }
-  .btn-unlock {
-    background: transparent;
-    border:1px solid var(--green);
-    color:var(--green);
-  }
-  .btn-unlock:hover {
-    background:var(--green);
-    color:#000;
-    box-shadow: var(--glow);
-  }
-  .btn-all-lock {
-    background:var(--red);
-    color:#fff; border:1px solid var(--red);
-  }
-  .btn-all-lock:hover {
-    background:#cc0022; box-shadow: 0 0 20px #ff335588;
-  }
-  .btn-all-unlock {
-    background:var(--green2);
-    color:#000; border:1px solid var(--green2);
-  }
-  .btn-all-unlock:hover {
-    background:var(--green);
-  }
+/* device list */
+#device-list-side{max-height:200px;overflow-y:auto;}
+#device-list-side::-webkit-scrollbar{width:3px;}
+#device-list-side::-webkit-scrollbar-thumb{background:var(--dim);}
+.dev-item{
+  padding:10px 16px;border-bottom:1px solid #0f1a0f;
+  display:flex;align-items:center;gap:8px;
+  cursor:pointer;transition:.15s;
+}
+.dev-item:hover{background:#0a160a;}
+.dev-item:last-child{border-bottom:none;}
+.dev-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--muted);flex-shrink:0;
+}
+.dev-dot.on{background:var(--green);box-shadow:var(--glow);}
+.dev-info{flex:1;}
+.dev-name{
+  font-family:'Share Tech Mono',monospace;
+  font-size:.8rem;color:var(--green);
+}
+.dev-meta{font-size:.65rem;color:var(--muted);margin-top:2px;}
+.dev-lock{
+  font-size:.65rem;padding:2px 7px;border-radius:2px;
+}
+.dev-lock.locked{background:#200005;color:var(--red);border:1px solid #440011;}
+.dev-lock.open{background:#001a0a;color:var(--green2);border:1px solid var(--dim);}
 
-  /* ── ALL DEVICES ROW ── */
-  .all-row {
-    display:flex; gap:12px; align-items:center;
-    margin-bottom:28px;
-    padding:16px 20px;
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:3px;
-  }
-  .all-row span {
-    flex:1;
-    font-size:.75rem; letter-spacing:2px;
-    text-transform:uppercase; color:var(--muted);
-  }
+/* quick actions */
+.actions-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;
+}
 
-  /* ── DEVICE TABLE ── */
-  .device-section {
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:3px;
-    overflow:hidden; margin-bottom:28px;
-  }
-  .device-header {
-    display:grid;
-    grid-template-columns:180px 100px 110px 1fr 120px 120px;
-    gap:12px;
-    padding:12px 20px;
-    background:#060e08;
-    border-bottom:1px solid var(--border);
-    font-size:.65rem; letter-spacing:2px;
-    text-transform:uppercase; color:var(--muted);
-  }
-  .device-row {
-    display:grid;
-    grid-template-columns:180px 100px 110px 1fr 120px 120px;
-    gap:12px;
-    padding:14px 20px;
-    border-bottom:1px solid #0f1a0f;
-    align-items:center;
-    transition: background .15s;
-    animation: rowIn .3s ease both;
-  }
-  @keyframes rowIn {
-    from { opacity:0; transform:translateX(-8px); }
-    to   { opacity:1; transform:translateX(0); }
-  }
-  .device-row:hover { background:#0a160a; }
-  .device-row:last-child { border-bottom:none; }
+/* buttons */
+.btn{
+  font-family:'Rajdhani',sans-serif;font-weight:700;
+  font-size:.8rem;letter-spacing:2px;text-transform:uppercase;
+  padding:9px 14px;border-radius:2px;border:none;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.btn-red{background:transparent;border:1px solid var(--red);color:var(--red);}
+.btn-red:hover{background:var(--red);color:#000;box-shadow:0 0 14px #ff335566;}
+.btn-green{background:transparent;border:1px solid var(--green);color:var(--green);}
+.btn-green:hover{background:var(--green);color:#000;box-shadow:var(--glow);}
+.btn-solid-red{background:var(--red);color:#fff;border:1px solid var(--red);}
+.btn-solid-red:hover{background:#cc0022;box-shadow:0 0 16px #ff335566;}
+.btn-solid-green{background:var(--green2);color:#000;border:1px solid var(--green2);}
+.btn-solid-green:hover{background:var(--green);}
+.btn-sm{padding:5px 10px;font-size:.7rem;}
 
-  .dev-id {
-    font-family:'Share Tech Mono', monospace;
-    font-size:.85rem; color:var(--green);
-  }
-  .status-badge {
-    display:inline-flex; align-items:center; gap:5px;
-    font-size:.7rem; letter-spacing:1px;
-    text-transform:uppercase;
-    padding:3px 10px; border-radius:2px;
-  }
-  .status-badge.online {
-    background:#001a0a; color:var(--green);
-    border:1px solid var(--dim);
-  }
-  .status-badge.offline {
-    background:#150005; color:#662233;
-    border:1px solid #2a0015;
-  }
-  .lock-badge {
-    font-family:'Share Tech Mono', monospace;
-    font-size:.75rem; padding:3px 10px;
-    border-radius:2px;
-  }
-  .lock-badge.locked {
-    background:#200005; color:var(--red);
-    border:1px solid #440011;
-  }
-  .lock-badge.unlocked {
-    background:#001a0a; color:var(--green2);
-    border:1px solid var(--dim);
-  }
-  .dev-seen {
-    font-family:'Share Tech Mono', monospace;
-    font-size:.7rem; color:var(--muted);
-  }
-  .empty-state {
-    text-align:center;
-    padding:48px;
-    color:var(--muted);
-    font-family:'Share Tech Mono', monospace;
-    font-size:.85rem;
-    letter-spacing:2px;
-  }
-  .empty-state .blink {
-    animation: blink 1s step-end infinite;
-  }
-  @keyframes blink { 50%{ opacity:0; } }
+/* log */
+#log-box{
+  height:150px;overflow-y:auto;padding:10px 14px;
+  font-family:'Share Tech Mono',monospace;font-size:.7rem;line-height:1.9;
+}
+#log-box::-webkit-scrollbar{width:3px;}
+#log-box::-webkit-scrollbar-thumb{background:var(--dim);}
+.le{display:flex;gap:10px;}
+.lt{color:var(--muted);min-width:58px;}
+.lm.ok{color:var(--green);}
+.lm.er{color:var(--red);}
+.lm.in{color:var(--yellow);}
 
-  /* ── LOG ── */
-  .log-section {
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:3px;
-    overflow:hidden;
-  }
-  .log-header {
-    padding:12px 20px;
-    background:#060e08;
-    border-bottom:1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between;
-  }
-  #log-box {
-    height:180px;
-    overflow-y:auto;
-    padding:12px 20px;
-    font-family:'Share Tech Mono', monospace;
-    font-size:.75rem;
-    line-height:1.8;
-  }
-  #log-box::-webkit-scrollbar { width:4px; }
-  #log-box::-webkit-scrollbar-track { background:transparent; }
-  #log-box::-webkit-scrollbar-thumb { background:var(--dim); }
-  .log-entry { display:flex; gap:12px; }
-  .log-time { color:var(--muted); min-width:80px; }
-  .log-msg.ok  { color:var(--green); }
-  .log-msg.err { color:var(--red); }
-  .log-msg.inf { color:var(--yellow); }
+/* firebase lock bar */
+.fb-bar{padding:12px;display:flex;flex-direction:column;gap:8px;}
+.fb-bar input{
+  background:#060e08;border:1px solid var(--dim);
+  color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.9rem;
+  padding:8px 12px;border-radius:2px;outline:none;width:100%;
+}
+.fb-bar input:focus{border-color:var(--green);}
+.fb-bar-row{display:flex;gap:8px;}
 
-  /* ── TOAST ── */
-  #toast {
-    position:fixed; bottom:24px; right:24px;
-    background:var(--panel);
-    border:1px solid var(--green);
-    color:var(--green);
-    font-family:'Share Tech Mono', monospace;
-    font-size:.8rem; letter-spacing:1px;
-    padding:12px 20px; border-radius:3px;
-    transform:translateY(20px); opacity:0;
-    transition: all .3s;
-    z-index:1000;
-    box-shadow: var(--glow);
-  }
-  #toast.show { opacity:1; transform:translateY(0); }
-  #toast.err  { border-color:var(--red); color:var(--red); }
+/* toast */
+#toast{
+  position:fixed;bottom:20px;right:20px;
+  background:var(--panel);border:1px solid var(--green);
+  color:var(--green);font-family:'Share Tech Mono',monospace;
+  font-size:.75rem;padding:10px 18px;border-radius:3px;
+  transform:translateY(16px);opacity:0;transition:all .25s;
+  z-index:10000;box-shadow:var(--glow);
+}
+#toast.show{opacity:1;transform:translateY(0);}
+#toast.err{border-color:var(--red);color:var(--red);}
 
-  @media(max-width:700px){
-    .stats { grid-template-columns:1fr 1fr; }
-    .bcast-row { grid-template-columns:1fr 1fr; }
-    .device-header,
-    .device-row { grid-template-columns:1fr 80px 90px; }
-    .device-header > *:nth-child(n+4),
-    .device-row   > *:nth-child(n+4) { display:none; }
-  }
+/* mouse mode toggle */
+.mode-btn{
+  padding:5px 12px;font-size:.7rem;letter-spacing:1px;
+  border-radius:2px;border:1px solid var(--dim);
+  background:transparent;color:var(--muted);cursor:pointer;font-family:'Rajdhani',sans-serif;
+  text-transform:uppercase;
+}
+.mode-btn.active{border-color:var(--green);color:var(--green);background:#001a0a;}
+
+@media(max-width:820px){
+  .main-grid{grid-template-columns:1fr;}
+  .side-panel{flex-direction:row;flex-wrap:wrap;}
+  .side-panel .card{flex:1 1 280px;}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <!-- HEADER -->
-  <header>
-    <div class="logo">RCP<span>//</span>Remote Control Panel</div>
-    <div class="conn-badge" id="conn-badge">
-      <div class="dot"></div>
-      <span id="conn-text">CONNECTING...</span>
-    </div>
-  </header>
+<!-- HEADER -->
+<header>
+  <div class="logo">RCP<span>//</span>Remote Control Panel v3</div>
+  <div class="hdr-badges">
+    <div class="badge" id="fb-badge"><div class="dot"></div><span id="fb-txt">FIREBASE...</span></div>
+    <div class="badge" id="ws-badge"><div class="dot"></div><span id="ws-txt">WS OFFLINE</span></div>
+  </div>
+</header>
 
-  <!-- STATS -->
-  <div class="stats">
-    <div class="stat-box">
-      <div class="stat-label">Total Devices</div>
-      <div class="stat-val" id="s-total">0</div>
+<div class="main-grid">
+
+  <!-- ── LEFT: VIEWER ── -->
+  <div class="viewer-section">
+
+    <!-- connect to control server -->
+    <div class="connect-bar">
+      <input id="ws-ip" placeholder="Target IP:Port  (e.g. 192.168.1.5:5000)"
+             value="192.168.1.5:5000"/>
+      <button class="btn btn-green btn-sm" onclick="connectWS()">Connect</button>
+      <button class="btn btn-red   btn-sm" onclick="disconnectWS()">Disconnect</button>
     </div>
-    <div class="stat-box">
-      <div class="stat-label">Online</div>
-      <div class="stat-val" id="s-online" style="color:var(--green)">0</div>
+
+    <!-- toolbar -->
+    <div class="viewer-toolbar">
+      <span class="sec-label">// Live Screen</span>
+      <button class="mode-btn active" id="btn-move"   onclick="setMode('move')">Move</button>
+      <button class="mode-btn"        id="btn-click"  onclick="setMode('click')">Click</button>
+      <button class="mode-btn"        id="btn-drag"   onclick="setMode('drag')">Drag</button>
+      <span style="color:var(--muted);font-size:.7rem;font-family:'Share Tech Mono'" id="fps-label">FPS: —</span>
     </div>
-    <div class="stat-box">
-      <div class="stat-label">Locked</div>
-      <div class="stat-val" id="s-locked" style="color:var(--red)">0</div>
+
+    <!-- canvas -->
+    <div class="viewer-wrap" id="viewer-wrap">
+      <div class="no-stream" id="no-stream-msg">
+        <div style="font-size:2rem;margin-bottom:12px">🖥️</div>
+        <span class="blink">█</span> Target se connect karo<br>
+        <span style="font-size:.75rem;margin-top:6px;display:block">Upar IP daalo aur Connect dabao</span>
+      </div>
+      <canvas id="screen-canvas" style="display:none"></canvas>
+      <div class="cursor-dot" id="cursor-dot" style="display:none"></div>
     </div>
+
+    <!-- keyboard bar -->
+    <div class="kb-bar">
+      <input id="kb-input" placeholder="Text type karo (Enter se send)" />
+      <button class="btn btn-green btn-sm" onclick="sendText()">Send Text</button>
+    </div>
+
   </div>
 
-  <!-- BROADCAST -->
-  <div class="broadcast">
-    <div class="section-label">// Ek Device ko Command Bhejo</div>
-    <div class="bcast-row">
-      <input id="b-device" placeholder="Device ID (e.g. device_001)" />
-      <input id="b-msg"    placeholder="Lock message (optional)" />
-      <button class="btn btn-lock"   onclick="sendLock()">🔒 Lock</button>
-      <button class="btn btn-unlock" onclick="sendUnlock()">🔓 Unlock</button>
-    </div>
-  </div>
+  <!-- ── RIGHT: SIDE PANEL ── -->
+  <div class="side-panel">
 
-  <!-- ALL DEVICES -->
-  <div class="all-row">
-    <span>// Saare Devices ek saath</span>
-    <button class="btn btn-all-lock"   onclick="lockAll()">🔒 LOCK ALL</button>
-    <button class="btn btn-all-unlock" onclick="unlockAll()">🔓 UNLOCK ALL</button>
-  </div>
-
-  <!-- DEVICE TABLE -->
-  <div class="device-section">
-    <div class="device-header">
-      <div>Device ID</div>
-      <div>Status</div>
-      <div>Screen</div>
-      <div>Last Seen</div>
-      <div>Lock</div>
-      <div>Unlock</div>
-    </div>
-    <div id="device-list">
-      <div class="empty-state">
-        <span class="blink">█</span> Devices dhundh raha hoon...
+    <!-- Stats -->
+    <div class="card">
+      <div class="card-head">// Stats</div>
+      <div class="stats-grid">
+        <div class="stat"><div class="stat-l">Devices</div><div class="stat-v" id="s-tot">0</div></div>
+        <div class="stat"><div class="stat-l">Online</div><div class="stat-v" id="s-on" style="color:var(--green)">0</div></div>
+        <div class="stat"><div class="stat-l">Locked</div><div class="stat-v" id="s-lk" style="color:var(--red)">0</div></div>
+        <div class="stat"><div class="stat-l">Stream</div>
+          <div class="stat-v" id="s-fps" style="font-size:1rem;padding-top:4px">—</div></div>
       </div>
     </div>
-  </div>
 
-  <!-- LOG -->
-  <div class="log-section">
-    <div class="log-header">
-      <div class="section-label" style="margin:0">// Activity Log</div>
-      <button class="btn btn-unlock" style="padding:4px 12px;font-size:.7rem"
-              onclick="clearLog()">CLEAR</button>
+    <!-- Devices -->
+    <div class="card">
+      <div class="card-head">// Devices (click = connect viewer)</div>
+      <div id="device-list-side">
+        <div style="padding:20px;text-align:center;color:var(--muted);font-size:.75rem;font-family:'Share Tech Mono'">
+          Loading...
+        </div>
+      </div>
     </div>
-    <div id="log-box"></div>
-  </div>
 
-</div>
+    <!-- Quick Lock Actions -->
+    <div class="card">
+      <div class="card-head">// Quick Actions</div>
+      <div class="fb-bar">
+        <input id="q-device" placeholder="Device ID"/>
+        <input id="q-msg"    placeholder="Lock message (optional)"/>
+        <div class="fb-bar-row">
+          <button class="btn btn-red   btn-sm" style="flex:1" onclick="qLock()">🔒 Lock</button>
+          <button class="btn btn-green btn-sm" style="flex:1" onclick="qUnlock()">🔓 Unlock</button>
+        </div>
+        <div class="fb-bar-row">
+          <button class="btn btn-solid-red   btn-sm" style="flex:1" onclick="lockAll()">LOCK ALL</button>
+          <button class="btn btn-solid-green btn-sm" style="flex:1" onclick="unlockAll()">UNLOCK ALL</button>
+        </div>
+      </div>
+    </div>
 
-<!-- TOAST -->
+    <!-- Remote Keyboard Shortcuts -->
+    <div class="card">
+      <div class="card-head">// Remote Keys</div>
+      <div class="actions-grid">
+        <button class="btn btn-red btn-sm"   onclick="rKey('win')">⊞ Win</button>
+        <button class="btn btn-red btn-sm"   onclick="rKey('tab','alt')">Alt+Tab</button>
+        <button class="btn btn-red btn-sm"   onclick="rKey('f4','alt')">Alt+F4</button>
+        <button class="btn btn-red btn-sm"   onclick="rKey('escape')">Escape</button>
+        <button class="btn btn-green btn-sm" onclick="rKey('c','ctrl')">Ctrl+C</button>
+        <button class="btn btn-green btn-sm" onclick="rKey('v','ctrl')">Ctrl+V</button>
+        <button class="btn btn-green btn-sm" onclick="rKey('z','ctrl')">Ctrl+Z</button>
+        <button class="btn btn-green btn-sm" onclick="rKey('enter')">Enter</button>
+        <button class="btn btn-green btn-sm" onclick="rKey('volumeup')">Vol+</button>
+        <button class="btn btn-green btn-sm" onclick="rKey('volumedown')">Vol-</button>
+      </div>
+    </div>
+
+    <!-- Log -->
+    <div class="card">
+      <div class="card-head" style="display:flex;justify-content:space-between;align-items:center">
+        <span>// Log</span>
+        <button class="btn btn-green btn-sm" onclick="clearLog()">Clear</button>
+      </div>
+      <div id="log-box"></div>
+    </div>
+
+  </div><!-- /side-panel -->
+</div><!-- /main-grid -->
+</div><!-- /wrap -->
+
 <div id="toast"></div>
 
-<!-- FIREBASE SDK -->
+<!-- FIREBASE + SOCKETIO LOGIC -->
 <script type="module">
-import { initializeApp }           from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+// ── Firebase ──────────────────────────────────────────────
+import { initializeApp }        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, get }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-// ─── CONFIG ───────────────────────────────────────
-const firebaseConfig = {
+const cfg = {
   apiKey:            "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
   authDomain:        "smsyy-f7bb7.firebaseapp.com",
   databaseURL:       "https://smsyy-f7bb7-default-rtdb.firebaseio.com",
@@ -445,167 +410,303 @@ const firebaseConfig = {
   messagingSenderId: "199149027655",
   appId:             "1:199149027655:web:2d9e70e7dff7abc293cc62"
 };
-// ──────────────────────────────────────────────────
 
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+const fbApp = initializeApp(cfg);
+const fbDb  = getDatabase(fbApp);
 
-// ─── CONNECTION STATUS ─────────────────────────────
-const connRef = ref(database, ".info/connected");
-onValue(connRef, snap => {
-  const live = snap.val();
-  const badge = document.getElementById("conn-badge");
-  const txt   = document.getElementById("conn-text");
-  if (live) {
-    badge.classList.add("live");
-    txt.textContent = "FIREBASE LIVE";
-    addLog("Firebase se connect ho gaya", "ok");
-  } else {
-    badge.classList.remove("live");
-    txt.textContent = "DISCONNECTED";
-    addLog("Firebase connection toot gayi", "err");
-  }
+// connection
+onValue(ref(fbDb,".info/connected"), s => {
+  const ok = s.val();
+  const b  = document.getElementById("fb-badge");
+  const t  = document.getElementById("fb-txt");
+  b.classList.toggle("live", ok);
+  t.textContent = ok ? "FIREBASE LIVE" : "FIREBASE OFF";
+  log(ok ? "Firebase connected" : "Firebase disconnected", ok?"ok":"er");
 });
 
-// ─── DEVICES LIVE WATCH ───────────────────────────
-const devicesRef = ref(database, "devices");
-onValue(devicesRef, snap => {
+// devices live watch
+onValue(ref(fbDb,"devices"), snap => {
   const data = snap.val() || {};
   renderDevices(data);
   updateStats(data);
 });
 
 function renderDevices(data) {
-  const list = document.getElementById("device-list");
+  const el   = document.getElementById("device-list-side");
   const keys = Object.keys(data);
-
-  if (keys.length === 0) {
-    list.innerHTML = `<div class="empty-state">
-      <span class="blink">█</span> Koi device nahi mila. overlay_client.py chalao.
-    </div>`;
+  if (!keys.length) {
+    el.innerHTML = `<div style="padding:18px;text-align:center;color:var(--muted);font-size:.75rem;font-family:'Share Tech Mono'">Koi device nahi</div>`;
     return;
   }
-
-  list.innerHTML = keys.map(id => {
-    const d      = data[id];
-    const online = d.status === "online";
-    const locked = d.overlay_active === true;
-    const seen   = d.last_seen ? d.last_seen.replace("T"," ").slice(0,19) : "—";
-    return `
-    <div class="device-row">
-      <div class="dev-id">${id}</div>
-      <div>
-        <span class="status-badge ${online?'online':'offline'}">
-          ${online?"● ONLINE":"○ OFFLINE"}
-        </span>
+  el.innerHTML = keys.map(id => {
+    const d = data[id];
+    const on  = d.status === "online";
+    const lk  = d.overlay_active;
+    const url = d.control_url || "";
+    return `<div class="dev-item" onclick="window._connectTo('${url}','${id}')">
+      <div class="dev-dot ${on?"on":""}"></div>
+      <div class="dev-info">
+        <div class="dev-name">${id}</div>
+        <div class="dev-meta">${url || "no url"}</div>
       </div>
-      <div>
-        <span class="lock-badge ${locked?'locked':'unlocked'}">
-          ${locked?"🔒 LOCKED":"🔓 OPEN"}
-        </span>
-      </div>
-      <div class="dev-seen">${seen}</div>
-      <div>
-        <button class="btn btn-lock" style="padding:6px 14px"
-          onclick="window._lock('${id}')">Lock</button>
-      </div>
-      <div>
-        <button class="btn btn-unlock" style="padding:6px 14px"
-          onclick="window._unlock('${id}')">Unlock</button>
+      <span class="dev-lock ${lk?"locked":"open"}">${lk?"🔒":"🔓"}</span>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-left:6px">
+        <button class="btn btn-red   btn-sm" onclick="event.stopPropagation();window._lock('${id}')">Lock</button>
+        <button class="btn btn-green btn-sm" onclick="event.stopPropagation();window._unlock('${id}')">Unlock</button>
       </div>
     </div>`;
   }).join("");
 }
 
 function updateStats(data) {
-  const keys   = Object.keys(data);
-  const online = keys.filter(k => data[k].status === "online").length;
-  const locked = keys.filter(k => data[k].overlay_active).length;
-  document.getElementById("s-total").textContent  = keys.length;
-  document.getElementById("s-online").textContent = online;
-  document.getElementById("s-locked").textContent = locked;
+  const k = Object.keys(data);
+  document.getElementById("s-tot").textContent = k.length;
+  document.getElementById("s-on").textContent  = k.filter(i=>data[i].status==="online").length;
+  document.getElementById("s-lk").textContent  = k.filter(i=>data[i].overlay_active).length;
 }
 
-// ─── SEND COMMAND ─────────────────────────────────
-function sendCommand(deviceId, action, message="🔒 Screen Locked", subMsg="Administrator ne lock kiya") {
-  const cmdRef = ref(database, `commands/${deviceId}`);
-  set(cmdRef, {
-    action,
-    message,
-    sub_message: subMsg,
-    color: action === "lock" ? "#ff4444" : "#00ff88",
+function sendCmd(deviceId, action, message="🔒 Screen Locked", subMsg="Administrator ne lock kiya") {
+  set(ref(fbDb,`commands/${deviceId}`), {
+    action, message, sub_message: subMsg,
+    color: action==="lock" ? "#ff4444" : "#00ff88",
     timestamp: new Date().toISOString(),
     sent_by: "admin_web"
-  }).then(() => {
-    addLog(`Command '${action}' → ${deviceId}`, "ok");
-    toast(`${action.toUpperCase()} → ${deviceId}`, action === "unlock");
-  }).catch(e => {
-    addLog(`Error: ${e.message}`, "err");
-    toast("Error! " + e.message, false, true);
+  }).then(()=>{ log(`${action} → ${deviceId}`, "ok"); toast(`${action.toUpperCase()} → ${deviceId}`); })
+    .catch(e=>{ log("Error: "+e.message,"er"); toast(e.message,false,true); });
+}
+
+window._lock    = id => sendCmd(id,"lock");
+window._unlock  = id => sendCmd(id,"unlock");
+
+window.qLock = ()=>{
+  const id  = document.getElementById("q-device").value.trim();
+  const msg = document.getElementById("q-msg").value.trim();
+  if(!id){ toast("Device ID daalo!",false,true); return; }
+  sendCmd(id,"lock",msg||"🔒 Screen Locked");
+};
+window.qUnlock = ()=>{
+  const id = document.getElementById("q-device").value.trim();
+  if(!id){ toast("Device ID daalo!",false,true); return; }
+  sendCmd(id,"unlock");
+};
+window.lockAll = async ()=>{
+  const s = await get(ref(fbDb,"devices"));
+  Object.keys(s.val()||{}).forEach(id=>sendCmd(id,"lock"));
+};
+window.unlockAll = async ()=>{
+  const s = await get(ref(fbDb,"devices"));
+  Object.keys(s.val()||{}).forEach(id=>sendCmd(id,"unlock"));
+};
+
+
+// ── WebSocket / Screen control ─────────────────────────────
+let socket   = null;
+let canvas   = document.getElementById("screen-canvas");
+let ctx      = canvas.getContext("2d");
+let curDot   = document.getElementById("cursor-dot");
+let mode     = "move";    // move | click | drag
+let dragging = false;
+let fpsCount = 0;
+let fpsTimer = null;
+let lastFrame= 0;
+
+window.connectWS = () => {
+  const ip = document.getElementById("ws-ip").value.trim();
+  if (!ip) { toast("IP:Port daalo", false, true); return; }
+  if (socket) socket.disconnect();
+
+  log(`Connecting → ${ip}`, "in");
+  socket = io(`http://${ip}`, { transports:["websocket"], timeout:5000 });
+
+  socket.on("connect", ()=>{
+    document.getElementById("ws-badge").classList.add("live");
+    document.getElementById("ws-txt").textContent = "WS LIVE";
+    document.getElementById("no-stream-msg").style.display = "none";
+    canvas.style.display = "block";
+    curDot.style.display = "block";
+    log(`Connected to ${ip}`, "ok");
+    toast(`Connected: ${ip}`);
+
+    // fps counter
+    fpsTimer = setInterval(()=>{
+      const fps = fpsCount;
+      fpsCount = 0;
+      document.getElementById("fps-label").textContent = `FPS: ${fps}`;
+      document.getElementById("s-fps").textContent = `${fps} fps`;
+    }, 1000);
   });
+
+  socket.on("disconnect", ()=>{
+    document.getElementById("ws-badge").classList.remove("live");
+    document.getElementById("ws-txt").textContent = "WS OFFLINE";
+    canvas.style.display = "none";
+    curDot.style.display = "none";
+    document.getElementById("no-stream-msg").style.display = "";
+    clearInterval(fpsTimer);
+    document.getElementById("fps-label").textContent = "FPS: —";
+    document.getElementById("s-fps").textContent = "—";
+    log("Disconnected from control server", "er");
+  });
+
+  socket.on("connect_error", e=>{
+    log("WS error: "+e.message,"er");
+    toast("Connect failed: "+e.message, false, true);
+  });
+
+  socket.on("frame", data=>{
+    fpsCount++;
+    const img = new Image();
+    img.onload = ()=>{
+      canvas.width  = data.w;
+      canvas.height = data.h;
+      ctx.drawImage(img, 0, 0);
+    };
+    img.src = "data:image/jpeg;base64," + data.img;
+  });
+};
+
+window.disconnectWS = ()=>{
+  if (socket) socket.disconnect();
+};
+
+window._connectTo = (url, id)=>{
+  if (!url) { toast("Control URL nahi hai is device pe", false, true); return; }
+  // extract host:port
+  const m = url.match(/http:\/\/(.+)/);
+  if (m) document.getElementById("ws-ip").value = m[1];
+  document.getElementById("q-device").value = id;
+  window.connectWS();
+};
+
+// ── Mouse events on canvas ─────────────────────────────────
+function getRelPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / rect.width,
+    y: (e.clientY - rect.top)  / rect.height
+  };
 }
 
-// ─── EXPORTED FUNCTIONS ───────────────────────────
-window._lock   = id => sendCommand(id, "lock");
-window._unlock = id => sendCommand(id, "unlock");
+canvas.addEventListener("mousemove", e=>{
+  if (!socket?.connected) return;
+  const r = getRelPos(e);
+  // update cursor dot
+  const rect = canvas.getBoundingClientRect();
+  curDot.style.left = (e.clientX - rect.left) + "px";
+  curDot.style.top  = (e.clientY - rect.top)  + "px";
+  // relative to viewer-wrap
+  curDot.style.left = (e.clientX - document.getElementById("viewer-wrap").getBoundingClientRect().left) + "px";
+  curDot.style.top  = (e.clientY - document.getElementById("viewer-wrap").getBoundingClientRect().top)  + "px";
 
-window.sendLock = () => {
-  const id  = document.getElementById("b-device").value.trim();
-  const msg = document.getElementById("b-msg").value.trim();
-  if (!id) { toast("Device ID daalo!", false, true); return; }
-  sendCommand(id, "lock", msg || "🔒 Screen Locked");
+  socket.emit("mouse_move", r);
+  if (dragging && mode === "drag") socket.emit("mouse_down", {...r, button:"left"});
+});
+
+canvas.addEventListener("click", e=>{
+  if (!socket?.connected || mode==="drag") return;
+  socket.emit("mouse_click", {...getRelPos(e), button:"left"});
+});
+
+canvas.addEventListener("contextmenu", e=>{
+  e.preventDefault();
+  if (!socket?.connected) return;
+  socket.emit("mouse_click", {...getRelPos(e), button:"right"});
+});
+
+canvas.addEventListener("dblclick", e=>{
+  if (!socket?.connected) return;
+  socket.emit("mouse_click", {...getRelPos(e), button:"left", double:true});
+});
+
+canvas.addEventListener("mousedown", e=>{
+  if (!socket?.connected) return;
+  dragging = true;
+  if (mode==="drag") socket.emit("mouse_down", {...getRelPos(e), button:"left"});
+});
+
+canvas.addEventListener("mouseup", e=>{
+  if (!socket?.connected) return;
+  if (dragging && mode==="drag") socket.emit("mouse_up", {...getRelPos(e), button:"left"});
+  dragging = false;
+});
+
+canvas.addEventListener("wheel", e=>{
+  if (!socket?.connected) return;
+  socket.emit("mouse_scroll", {delta: e.deltaY < 0 ? 3 : -3});
+});
+
+// ── Keyboard ──────────────────────────────────────────────
+document.addEventListener("keydown", e=>{
+  if (!socket?.connected) return;
+  if (document.activeElement === document.getElementById("kb-input")) return;
+  if (document.activeElement === document.getElementById("ws-ip"))    return;
+  if (document.activeElement === document.getElementById("q-device")) return;
+  if (document.activeElement === document.getElementById("q-msg"))    return;
+  e.preventDefault();
+  const key = e.key.toLowerCase()
+    .replace("arrowleft","left").replace("arrowright","right")
+    .replace("arrowup","up").replace("arrowdown","down")
+    .replace(" ","space");
+  socket.emit("key_press",{
+    key, ctrl:e.ctrlKey, alt:e.altKey, shift:e.shiftKey, meta:e.metaKey
+  });
+});
+
+document.getElementById("kb-input").addEventListener("keydown", e=>{
+  if (e.key === "Enter") { window.sendText(); e.preventDefault(); }
+});
+
+window.sendText = ()=>{
+  if (!socket?.connected) { toast("Connect karo pehle!",false,true); return; }
+  const t = document.getElementById("kb-input").value;
+  if (!t) return;
+  socket.emit("type_text",{text:t});
+  document.getElementById("kb-input").value = "";
+  log(`Text sent: "${t}"`, "ok");
 };
 
-window.sendUnlock = () => {
-  const id = document.getElementById("b-device").value.trim();
-  if (!id) { toast("Device ID daalo!", false, true); return; }
-  sendCommand(id, "unlock");
+window.rKey = (key,...mods)=>{
+  if (!socket?.connected) { toast("Connect karo pehle!",false,true); return; }
+  socket.emit("key_press",{
+    key,
+    ctrl:  mods.includes("ctrl"),
+    alt:   mods.includes("alt"),
+    shift: mods.includes("shift"),
+    meta:  mods.includes("win")
+  });
+  log(`Key: ${mods.join("+")}+${key}`.replace(/^\+/,""), "ok");
 };
 
-window.lockAll = async () => {
-  const snap = await get(devicesRef);
-  const data = snap.val() || {};
-  const keys = Object.keys(data);
-  if (keys.length === 0) { toast("Koi device nahi!", false, true); return; }
-  keys.forEach(id => sendCommand(id, "lock"));
-  addLog(`LOCK ALL — ${keys.length} devices`, "inf");
+// ── Mode toggle ───────────────────────────────────────────
+window.setMode = m=>{
+  mode = m;
+  ["move","click","drag"].forEach(id=>{
+    const el = document.getElementById("btn-"+id);
+    if(el) el.classList.toggle("active", id===m);
+  });
 };
 
-window.unlockAll = async () => {
-  const snap = await get(devicesRef);
-  const data = snap.val() || {};
-  const keys = Object.keys(data);
-  if (keys.length === 0) { toast("Koi device nahi!", false, true); return; }
-  keys.forEach(id => sendCommand(id, "unlock"));
-  addLog(`UNLOCK ALL — ${keys.length} devices`, "inf");
-};
-
-// ─── LOG ──────────────────────────────────────────
-function addLog(msg, type="inf") {
-  const box  = document.getElementById("log-box");
-  const time = new Date().toLocaleTimeString("en-IN", {hour12:false});
-  const el   = document.createElement("div");
-  el.className = "log-entry";
-  el.innerHTML = `<span class="log-time">${time}</span>
-                  <span class="log-msg ${type}">${msg}</span>`;
+// ── Log + Toast ───────────────────────────────────────────
+function log(msg, type="in") {
+  const box = document.getElementById("log-box");
+  const t   = new Date().toLocaleTimeString("en-IN",{hour12:false});
+  const el  = document.createElement("div");
+  el.className = "le";
+  el.innerHTML = `<span class="lt">${t}</span><span class="lm ${type}">${msg}</span>`;
   box.prepend(el);
-  if (box.children.length > 60) box.lastChild.remove();
+  if(box.children.length>80) box.lastChild.remove();
 }
+window.clearLog = ()=>{ document.getElementById("log-box").innerHTML=""; };
 
-window.clearLog = () => {
-  document.getElementById("log-box").innerHTML = "";
-};
-
-// ─── TOAST ────────────────────────────────────────
 function toast(msg, good=true, err=false) {
   const el = document.getElementById("toast");
   el.textContent = msg;
-  el.className   = "show" + (err ? " err" : "");
-  clearTimeout(window._toastT);
-  window._toastT = setTimeout(() => el.classList.remove("show"), 2800);
+  el.className   = "show"+(err?" err":"");
+  clearTimeout(window._tt);
+  window._tt = setTimeout(()=>el.classList.remove("show"), 2800);
 }
 
-addLog("Admin panel load hua", "inf");
+log("Admin panel ready", "ok");
 </script>
 </body>
 </html>

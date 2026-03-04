@@ -212,14 +212,17 @@
 
 <!-- Launch panel -->
 <div class="panel">
-    <div class="panel-title">▸ LAUNCH HIDDEN REMOTE SESSION</div>
+    <div class="panel-title">▸ LAUNCH HIDDEN REMOTE SESSION (select backup profile)</div>
     <div class="row">
         <select id="profile-list">
             <option value="">Scanning profiles…</option>
         </select>
         <input type="text" id="target-url" placeholder="https://google.com" value="https://google.com">
     </div>
-    <button class="btn btn-full" onclick="launchProfile()">⚡ INITIALIZE HIDDEN SESSION</button>
+    <div style="display:flex;gap:10px;margin-top:10px;">
+            <button class="btn" style="flex:1" onclick="launchProfile()">⚡ INITIALIZE HIDDEN SESSION</button>
+            <button class="btn orange" style="width:180px" onclick="refreshBackup()" title="Close Chrome, backup all profiles, reopen Chrome">🔄 REFRESH BACKUP</button>
+        </div>
 </div>
 
 <!-- Stream view -->

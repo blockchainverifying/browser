@@ -314,6 +314,8 @@ header{
       <button class="mb"    id="mb-click" onclick="setMode('click')">Click</button>
       <button class="mb"    id="mb-drag"  onclick="setMode('drag')">Drag</button>
       <span style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--muted)" id="fpslbl">— fps</span>
+      <button id="btn-live" class="btn bsg sm" onclick="startStream()" style="margin-left:6px;">▶ Get Live</button>
+      <button id="btn-stop" class="btn br  sm" onclick="stopStream()"  style="display:none;">⏹ Stop</button>
     </div>
 
     <div class="fps-rail"><div class="fps-fill" id="fpsfill"></div></div>
@@ -550,6 +552,76 @@ function renderDevices(data){
   }).join("");
 }
 
+// ── Stream control ────────────────────────────────────────
+let streamingActive = false;
+
+function startStream() {
+  if (!viewingDevice) { toast("Device select karo pehle!", false, true); return; }
+  set(ref(db, `stream_ctrl/${viewingDevice}`), { cmd: "start", ts: Date.now() })
+    .then(() => {
+      streamingActive = true;
+      document.getElementById("btn-live").style.display = "none";
+      document.getElementById("btn-stop").style.display = "";
+      log(`▶ Stream START → ${viewingDevice}`, "ok");
+      toast(`▶ Live: ${viewingDevice}`);
+      // Now subscribe to frames
+      subscribeScreen(viewingDevice);
+    })
+    .catch(e => { log("Stream start err: " + e.message, "er"); });
+}
+
+function stopStream() {
+  if (!viewingDevice) return;
+  set(ref(db, `stream_ctrl/${viewingDevice}`), { cmd: "stop", ts: Date.now() })
+    .then(() => {
+      streamingActive = false;
+      document.getElementById("btn-live").style.display = "";
+      document.getElementById("btn-stop").style.display = "none";
+      // Unsubscribe frames
+      if (screenUnsub) { screenUnsub(); screenUnsub = null; }
+      scrImg.style.display = "none";
+      nomsg.style.display  = "block";
+      stBdg.classList.remove("live");
+      stTxt.textContent = "NO STREAM";
+      clearInterval(fpsTimer);
+      document.getElementById("fpslbl").textContent = "— fps";
+      document.getElementById("s-fps").textContent  = "—";
+      document.getElementById("fpsfill").style.width = "0%";
+      log(`⏹ Stream STOP → ${viewingDevice}`, "in");
+      toast(`⏹ Stopped: ${viewingDevice}`);
+    })
+    .catch(e => { log("Stream stop err: " + e.message, "er"); });
+}
+
+function subscribeScreen(id) {
+  if (screenUnsub) { screenUnsub(); screenUnsub = null; }
+
+  scrImg.style.display = "block";
+  nomsg.style.display  = "none";
+  cring.style.display  = "block";
+  stBdg.classList.add("live");
+  stTxt.textContent = id;
+
+  fpsCount = 0;
+  clearInterval(fpsTimer);
+  fpsTimer = setInterval(() => {
+    const fps = fpsCount; fpsCount = 0;
+    document.getElementById("fpslbl").textContent = `${fps} fps`;
+    document.getElementById("s-fps").textContent  = `${fps}fps`;
+    document.getElementById("fpsfill").style.width = Math.min(fps / 10 * 100, 100) + "%";
+  }, 1000);
+
+  screenUnsub = onValue(ref(db, `screens/${id}`), snap => {
+    const d = snap.val();
+    if (!d?.img) return;
+    scrImg.src = "data:image/jpeg;base64," + d.img;
+    fpsCount++;
+  });
+}
+
+window.startStream = startStream;
+window.stopStream  = stopStream;
+
 // ── Screen viewer ─────────────────────────────────────────
 let viewingDevice = null;
 let screenUnsub   = null;
@@ -563,37 +635,43 @@ const stBdg  = document.getElementById("stb");
 const stTxt  = document.getElementById("stt");
 
 window.viewDevice = id => {
-  if(screenUnsub){ screenUnsub(); screenUnsub=null; }
+  // Pehle jo chal raha tha usse stop karo (UI only — Firebase cmd nahi)
+  if (screenUnsub) { screenUnsub(); screenUnsub = null; }
+  if (streamingActive && viewingDevice && viewingDevice !== id) {
+    // Previous device ka stream stop karo
+    set(ref(db, `stream_ctrl/${viewingDevice}`), { cmd: "stop", ts: Date.now() });
+    streamingActive = false;
+  }
+
   viewingDevice = id;
   document.getElementById("dev-watching").textContent = `— ${id}`;
   document.getElementById("qid").value = id;
 
-  scrImg.style.display = "block";
-  nomsg.style.display  = "none";
-  cring.style.display  = "block";
-  stBdg.classList.add("live");
-  stTxt.textContent = id;
+  // Stream buttons reset
+  document.getElementById("btn-live").style.display = "";
+  document.getElementById("btn-stop").style.display = "none";
+  streamingActive = false;
 
-  fpsCount=0;
+  // Screen viewer reset — wait for "Get Live" click
+  scrImg.style.display = "none";
+  nomsg.style.display  = "block";
+  nomsg.innerHTML = `
+    <div style="font-size:2.8rem;margin-bottom:12px;opacity:.4">🖥️</div>
+    <span style="color:var(--green);font-family:'Share Tech Mono',monospace;font-size:.8rem">${id}</span><br>
+    <span style="font-size:.75rem;margin-top:10px;display:block;color:var(--muted)">
+      ▶ "Get Live" button dabao stream shuru karne ke liye
+    </span>`;
+  cring.style.display  = "none";
+  stBdg.classList.remove("live");
+  stTxt.textContent = "READY";
   clearInterval(fpsTimer);
-  fpsTimer = setInterval(()=>{
-    const fps=fpsCount; fpsCount=0;
-    document.getElementById("fpslbl").textContent = `${fps} fps`;
-    document.getElementById("s-fps").textContent  = `${fps}fps`;
-    document.getElementById("fpsfill").style.width = Math.min(fps/10*100,100)+"%";
-  }, 1000);
+  document.getElementById("fpslbl").textContent = "— fps";
+  document.getElementById("s-fps").textContent  = "—";
+  document.getElementById("fpsfill").style.width = "0%";
 
-  screenUnsub = onValue(ref(db,`screens/${id}`), snap=>{
-    const d=snap.val();
-    if(!d?.img) return;
-    scrImg.src = "data:image/jpeg;base64,"+d.img;
-    fpsCount++;
-  });
-
-  // highlight active
   renderDevices(devData);
-  log(`Viewing: ${id}`, "ok");
-  toast(`Screen: ${id}`);
+  log(`Selected: ${id} — "Get Live" press karo`, "in");
+  toast(`Device: ${id}`);
 };
 
 // ── Send control to Firebase ──────────────────────────────

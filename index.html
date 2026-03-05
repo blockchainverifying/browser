@@ -49,11 +49,17 @@
                 <!-- Typing Control -->
                 <div class="space-y-2">
                     <p class="text-[10px] text-slate-500 uppercase font-bold px-1">Remote Typing</p>
-                    <div class="flex gap-2">
-                        <input type="text" id="type-input" placeholder="Type here..." class="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white">
-                        <button onclick="sendText()" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-xs font-bold uppercase transition-all active:scale-95">Send</button>
+                    <div class="flex flex-col gap-2">
+                        <input type="text" id="type-input" placeholder="Type here..." class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white">
+                        <div class="flex gap-2">
+                            <button onclick="sendText()" class="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded-lg text-xs font-bold uppercase transition-all active:scale-95">Send Text</button>
+                            <button onclick="sendSpecialKey('enter')" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-xs font-bold uppercase transition-all active:scale-95 flex items-center justify-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                                Enter
+                            </button>
+                        </div>
                     </div>
-                    <p class="text-[8px] text-slate-600 italic px-1">Press enter to send quickly</p>
+                    <p class="text-[8px] text-slate-600 italic px-1">Press enter on keyboard to send text quickly</p>
                 </div>
             </div>
         </div>
@@ -64,14 +70,14 @@
                 <div class="flex items-center justify-between mb-3 px-2">
                     <div class="flex items-center gap-3">
                         <div id="live-indicator" class="w-2 h-2 rounded-full bg-red-500 animate-pulse hidden"></div>
-                        <span class="text-[10px] font-bold tracking-widest uppercase opacity-50">Live Viewport (Click to Remote Click)</span>
+                        <span class="text-[10px] font-bold tracking-widest uppercase opacity-50">Live Viewport (Precise Control Mode)</span>
                     </div>
                     <span id="timestamp" class="text-[10px] font-mono opacity-40">--:--:--</span>
                 </div>
                 
                 <div id="viewport-container" class="relative flex-1 bg-black rounded-2xl overflow-hidden cursor-crosshair border border-white/10 group flex items-center justify-center">
                     <!-- Live Image Display -->
-                    <img id="live-img" class="max-w-full max-h-full object-contain hidden" src="" onmousedown="remoteClick(event)" draggable="false" />
+                    <img id="live-img" class="max-w-full max-h-full object-contain hidden pointer-events-auto" src="" onmousedown="remoteClick(event)" draggable="false" />
                     
                     <!-- Loader / Placeholder -->
                     <div id="loader" class="absolute inset-0 flex flex-col items-center justify-center text-slate-700">
@@ -101,21 +107,24 @@
             database.ref('system_settings/' + path).set(val); 
         }
 
-        // Remote Clicking Logic
+        // Improved Remote Clicking Logic (Handles image scaling/contain better)
         function remoteClick(e) {
             const img = document.getElementById('live-img');
             const rect = img.getBoundingClientRect();
             
-            // Calculate relative coordinates (0 to 1) based on the image size
+            // Calculate coordinates relative to the actual image element
+            // This ensures clicks land correctly even if image is scaled or letterboxed
             const x = (e.clientX - rect.left) / rect.width;
             const y = (e.clientY - rect.top) / rect.height;
             
-            // Send to Firebase with a timestamp to ensure the listener triggers every time
-            database.ref('system_settings/mouse_click').set({
-                x: x,
-                y: y,
-                ts: Date.now()
-            });
+            // Boundary check
+            if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
+                database.ref('system_settings/mouse_click').set({
+                    x: x,
+                    y: y,
+                    ts: Date.now()
+                });
+            }
         }
 
         // Remote Typing Logic
@@ -123,14 +132,21 @@
             const input = document.getElementById('type-input');
             const text = input.value;
             if(text) {
-                // We append a small delay or clear to ensure consecutive identical messages trigger
                 database.ref('system_settings/remote_typing').set(text);
                 input.value = "";
-                // Briefly reset typing path to allow same text again later
                 setTimeout(() => {
                     database.ref('system_settings/remote_typing').set("");
                 }, 500);
             }
+        }
+
+        // Send Special Keys (Enter, etc.)
+        function sendSpecialKey(key) {
+            // Using a special prefix or object to tell Python it's a keypress, not typing
+            database.ref('system_settings/remote_typing').set(`{KEY:${key.toUpperCase()}}`);
+            setTimeout(() => {
+                database.ref('system_settings/remote_typing').set("");
+            }, 300);
         }
 
         // Enter key to send text
@@ -175,7 +191,7 @@
                 img.src = b64;
                 img.classList.remove('hidden');
                 loader.classList.add('hidden');
-                document.getElementById('timestamp').innerText = "LIVE: " + new Date().toLocaleTimeString();
+                document.getElementById('timestamp').innerText = "LIVE FEED | " + new Date().toLocaleTimeString();
             }
         });
     </script>

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -224,16 +223,53 @@ body::before {
   image-rendering: high-quality;
 }
 
+/* ── Local cursor (admin ka) ── */
 .cursor-ring {
   position: absolute;
-  width: 14px; height: 14px;
-  border: 1.5px solid var(--cyan);
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.9);
   border-radius: 50%;
   pointer-events: none;
   transform: translate(-50%, -50%);
-  box-shadow: var(--glow-c);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.5);
   display: none;
-  transition: left .03s linear, top .03s linear;
+  z-index: 20;
+  transition: left .02s linear, top .02s linear;
+}
+
+/* ── Remote cursor (target PC pe actual position) ── */
+.remote-cursor {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-2px, -2px);
+  z-index: 19;
+  display: none;
+  transition: left .08s linear, top .08s linear;
+}
+
+.remote-cursor::before {
+  content: '';
+  position: absolute;
+  width: 0; height: 0;
+  border-left: 8px solid transparent;
+  border-right: 0px solid transparent;
+  border-bottom: 12px solid rgba(0, 229, 255, 0.95);
+  filter: drop-shadow(0 0 4px #00e5ff);
+}
+
+.remote-cursor::after {
+  content: 'PC';
+  position: absolute;
+  top: 14px; left: 6px;
+  background: rgba(0, 229, 255, 0.9);
+  color: #000;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+  letter-spacing: 1px;
 }
 
 .no-signal {
@@ -759,6 +795,7 @@ body::before {
       </div>
       <img id="scr" alt="screen" draggable="false">
       <div class="cursor-ring" id="cring"></div>
+      <div class="remote-cursor" id="rcursor"></div>
     </div>
 
     <!-- Mode toggles -->
@@ -939,13 +976,13 @@ import { getDatabase, ref, set, get,
          onValue, off }                 from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
-  authDomain: "smsyy-f7bb7.firebaseapp.com",
-  databaseURL: "https://smsyy-f7bb7-default-rtdb.firebaseio.com",
-  projectId: "smsyy-f7bb7",
-  storageBucket: "smsyy-f7bb7.firebasestorage.app",
-  messagingSenderId: "199149027655",
-  appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  databaseURL:       "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId:         "YOUR_PROJECT",
+  storageBucket:     "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -1047,8 +1084,10 @@ window.stopStream = () => {
   set(ref(db, `stream_ctrl/${viewingDevice}`), { cmd: "stop" });
   log(`Stream STOP → ${viewingDevice}`, "in");
   if (streamUnsub) { off(ref(db, `screens/${viewingDevice}`)); streamUnsub = null; }
+  if (_cursorUnsub) { try { off(ref(db, `cursor/${_cursorUnsub}`)); } catch(e){} _cursorUnsub = null; }
   document.getElementById("scr").style.display = "none";
   document.getElementById("no-signal").style.display = "flex";
+  document.getElementById("rcursor").style.display = "none";
   document.getElementById("stream-status").textContent = "IDLE";
 };
 
@@ -1075,6 +1114,45 @@ function subscribeStream(id) {
     document.getElementById("stream-status").textContent = "LIVE";
   });
   streamUnsub = id;
+
+  // ── Remote cursor listener ──────────────────────────────────
+  subscribeCursor(id);
+}
+
+let _cursorUnsub = null;
+
+function subscribeCursor(id) {
+  // Pehle wala unsub karo
+  if (_cursorUnsub) {
+    try { off(ref(db, `cursor/${_cursorUnsub}`)); } catch(e) {}
+    _cursorUnsub = null;
+  }
+  const rcursor = document.getElementById("rcursor");
+
+  onValue(ref(db, `cursor/${id}`), snap => {
+    const data = snap.val();
+    if (!data) return;
+    const scr = document.getElementById("scr");
+    if (scr.style.display !== "block") return;   // stream nahi chal raha
+    const r = scr.getBoundingClientRect();
+    if (!r.width) return;
+
+    // Normalize coordinates → pixel position in viewer
+    const px = data.x * r.width;
+    const py = data.y * r.height;
+
+    rcursor.style.display = "block";
+    rcursor.style.left    = px + "px";
+    rcursor.style.top     = py + "px";
+
+    // 3 seconds baad hide — agar cursor move nahi hua
+    clearTimeout(rcursor._hideTimer);
+    rcursor._hideTimer = setTimeout(() => {
+      rcursor.style.display = "none";
+    }, 3000);
+  });
+
+  _cursorUnsub = id;
 }
 
 // ── Mouse control ─────────────────────────────────────────────

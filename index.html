@@ -1,90 +1,159 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Master Control Dashboard</title>
-<script src="https://www.google.com/search?q=https://cdn.tailwindcss.com"></script>
-<!-- Firebase SDKs -->
-<script src="https://www.google.com/search?q=https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.google.com/search?q=https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-</head>
-<body class="bg-slate-900 min-h-screen flex items-center justify-center text-white font-sans">
-
-<div class="bg-slate-800 p-8 rounded-3xl shadow-2xl border border-slate-700 w-full max-w-md text-center">
-    <h1 class="text-2xl font-black mb-2 uppercase tracking-tight">System Controller</h1>
-    <p class="text-slate-400 text-xs mb-8 italic">BSOD Remote Trigger Interface</p>
-    
-    <div id="status-card" class="mb-8 p-5 rounded-2xl bg-slate-950 border border-slate-700">
-        <p class="text-[10px] text-slate-500 uppercase font-bold mb-2 tracking-widest">Connection Status</p>
-        <p id="status-text" class="text-xl font-mono text-emerald-400 tracking-wider">CONNECTING...</p>
-    </div>
-
-    <div class="space-y-4">
-        <!-- Lock Button -->
-        <button onclick="triggerLock(true)" id="lock-btn" class="w-full bg-red-600 hover:bg-red-700 py-4 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-red-900/20">
-            ACTIVATE 60s BSOD LOCK
-        </button>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Control Dashboard</title>
+    <!-- Tailwind CSS with correct CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
         
-        <!-- Force Unlock Button -->
-        <button onclick="triggerLock(false)" class="w-full bg-slate-700 hover:bg-slate-600 py-4 rounded-xl font-bold transition-all active:scale-95 text-slate-300">
-            FORCE MANUAL UNLOCK
-        </button>
-    </div>
-    
-    <div class="mt-8 pt-6 border-t border-slate-700">
-        <p class="text-slate-500 text-[11px] leading-relaxed">
-            System automatic 100% complete hone par unlock ho jayega.<br>
-            Admin manual override kabhi bhi kar sakta hai.
-        </p>
-    </div>
-</div>
-
-<script>
-    // Firebase Configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
-        authDomain: "smsyy-f7bb7.firebaseapp.com",
-        databaseURL: "https://smsyy-f7bb7-default-rtdb.firebaseio.com",
-        projectId: "smsyy-f7bb7",
-        storageBucket: "smsyy-f7bb7.firebasestorage.app",
-        messagingSenderId: "199149027655",
-        appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-    const statusText = document.getElementById('status-text');
-    const lockBtn = document.getElementById('lock-btn');
-
-    // Function to update Firebase
-    function triggerLock(status) {
-        database.ref('system_settings/overlay_active').set(status)
-            .catch(err => {
-                console.error("Database update failed:", err);
-                alert("Error updating status!");
-            });
-    }
-
-    // Database monitoring (Real-time sync with Python Script)
-    database.ref('system_settings/overlay_active').on('value', (snapshot) => {
-        const active = snapshot.val();
-        if (active === true) {
-            statusText.innerText = "SYSTEM IS LOCKED";
-            statusText.className = "text-xl font-mono text-red-500 animate-pulse";
-            lockBtn.disabled = true;
-            lockBtn.innerText = "LOCK IN PROGRESS...";
-        } else {
-            statusText.innerText = "SYSTEM READY / FREE";
-            statusText.className = "text-xl font-mono text-emerald-400";
-            lockBtn.disabled = false;
-            lockBtn.innerText = "ACTIVATE 60s BSOD LOCK";
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
         }
-    });
-</script>
 
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
 
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .pulse-red {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .btn-gradient-red {
+            background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
+        }
+
+        .btn-gradient-slate {
+            background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div class="glass-card p-10 rounded-[2.5rem] shadow-2xl w-full max-w-lg relative overflow-hidden">
+        <!-- Decoration -->
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-red-600/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-600/10 rounded-full blur-3xl"></div>
+
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-bold tracking-tighter text-white">SYSTEM COMMAND</h1>
+            <div class="flex items-center justify-center gap-2 mt-2">
+                <span class="w-12 h-[1px] bg-slate-700"></span>
+                <p class="text-slate-400 text-xs uppercase tracking-[0.2em] font-medium">Remote Terminal</p>
+                <span class="w-12 h-[1px] bg-slate-700"></span>
+            </div>
+        </header>
+        
+        <div class="bg-black/40 rounded-3xl p-6 border border-white/5 mb-8 text-center transition-all duration-500" id="status-container">
+            <p class="text-[10px] text-slate-500 uppercase font-black mb-3 tracking-[0.3em]">Live Connection Hub</p>
+            <div class="flex items-center justify-center gap-3">
+                <span id="status-dot" class="status-dot bg-emerald-500"></span>
+                <p id="status-text" class="text-2xl font-bold text-emerald-400 font-mono tracking-tight">READY</p>
+            </div>
+        </div>
+
+        <div class="grid gap-5">
+            <!-- Lock Button -->
+            <button onclick="triggerLock(true)" id="lock-btn" 
+                class="btn-gradient-red group relative overflow-hidden w-full py-5 rounded-2xl font-bold text-white transition-all active:scale-[0.98] disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed">
+                <span class="relative z-10 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                    </svg>
+                    ACTIVATE BSOD LOCK
+                </span>
+                <div class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+            </button>
+            
+            <!-- Force Unlock Button -->
+            <button onclick="triggerLock(false)" 
+                class="btn-gradient-slate w-full py-5 rounded-2xl font-bold text-slate-200 border border-white/5 hover:border-white/20 transition-all active:scale-[0.98]">
+                FORCE MANUAL BYPASS
+            </button>
+        </div>
+        
+        <footer class="mt-10 pt-6 border-t border-white/5">
+            <div class="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                <span>Auto-Unlock: 60s</span>
+                <span>V2.4 Protocol</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Aapka Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
+            authDomain: "smsyy-f7bb7.firebaseapp.com",
+            databaseURL: "https://smsyy-f7bb7-default-rtdb.firebaseio.com",
+            projectId: "smsyy-f7bb7",
+            storageBucket: "smsyy-f7bb7.firebasestorage.app",
+            messagingSenderId: "199149027655",
+            appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('status-dot');
+        const lockBtn = document.getElementById('lock-btn');
+        const statusContainer = document.getElementById('status-container');
+
+        // Function to update Firebase
+        function triggerLock(status) {
+            database.ref('system_settings/overlay_active').set(status)
+                .catch(err => {
+                    console.error("Failed:", err);
+                });
+        }
+
+        // Database Monitoring
+        database.ref('system_settings/overlay_active').on('value', (snapshot) => {
+            const active = snapshot.val();
+            if (active === true) {
+                statusText.innerText = "LOCKED";
+                statusText.className = "text-2xl font-bold text-red-500 font-mono tracking-tight";
+                statusDot.className = "status-dot bg-red-500 pulse-red";
+                statusContainer.classList.add('border-red-500/30');
+                lockBtn.disabled = true;
+                lockBtn.querySelector('span').innerText = "LOCK IN PROGRESS...";
+            } else {
+                statusText.innerText = "READY";
+                statusText.className = "text-2xl font-bold text-emerald-400 font-mono tracking-tight";
+                statusDot.className = "status-dot bg-emerald-500";
+                statusContainer.classList.remove('border-red-500/30');
+                lockBtn.disabled = false;
+                lockBtn.querySelector('span').innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                    </svg>
+                    ACTIVATE BSOD LOCK
+                `;
+            }
+        });
+    </script>
 </body>
 </html>

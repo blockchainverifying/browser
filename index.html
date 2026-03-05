@@ -909,12 +909,12 @@ function startListeners() {
     updateDeviceStatus(d);
   });
 
-  // Screen stream
-  screenRef = db.ref(`screens/${deviceId}/frame`);
+  // Screen stream — Python writes: screens/{deviceId} = { img, w, h, t }
+  screenRef = db.ref(`screens/${deviceId}`);
   screenRef.on("value", snap => {
-    const b64 = snap.val();
-    if (!b64) return;
-    showFrame(b64);
+    const data = snap.val();
+    if (!data || !data.img) return;
+    showFrame(data.img, data.w, data.h);
   });
 }
 
@@ -947,14 +947,17 @@ function updateDeviceStatus(d) {
 // ══════════════════════════════════════════════════════════════
 //  SCREEN STREAM
 // ══════════════════════════════════════════════════════════════
-function showFrame(b64) {
-  const img = document.getElementById("screen-img");
-  const ph  = document.getElementById("screen-placeholder");
+function showFrame(b64, w, h) {
+  const img   = document.getElementById("screen-img");
+  const ph    = document.getElementById("screen-placeholder");
   const badge = document.getElementById("live-badge");
+
   img.src = "data:image/jpeg;base64," + b64;
   img.style.display = "block";
   ph.style.display  = "none";
   badge.classList.add("live");
+
+  if (w && h) document.getElementById("stat-screen").textContent = w + "×" + h;
 
   frameCount++;
   document.getElementById("frame-counter").textContent = frameCount;

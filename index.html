@@ -3,133 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced System Monitor</title>
+    <title>Advanced System Control</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase Legacy SDKs for maximum compatibility -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
-        body { 
-            font-family: 'Space Grotesk', sans-serif; 
-            background: #020617; 
-            background-image: radial-gradient(circle at 50% -20%, #1e293b, #020617);
-        }
-        .glass { 
-            background: rgba(15, 23, 42, 0.8); 
-            backdrop-filter: blur(12px); 
-            border: 1px solid rgba(255,255,255,0.05); 
-        }
-        .shimmer {
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
-            background-size: 200% 100%;
-            animation: shimmer 2s infinite;
-        }
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
+        body { font-family: 'Space Grotesk', sans-serif; background: #020617; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
+        #viewport-container img { user-drag: none; -webkit-user-drag: none; }
     </style>
 </head>
 <body class="min-h-screen text-slate-200 p-4 md:p-8">
 
-    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        <!-- Sidebar Controls -->
-        <div class="lg:col-span-4 space-y-6">
-            <div class="glass p-8 rounded-3xl shadow-2xl relative overflow-hidden">
-                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-emerald-500"></div>
+        <!-- Controls Sidebar -->
+        <div class="lg:col-span-3 space-y-6">
+            <div class="glass p-6 rounded-3xl shadow-2xl border-t-2 border-blue-500">
+                <h1 class="text-xl font-bold mb-6 tracking-tighter">REMOTE TERMINAL</h1>
                 
-                <h1 class="text-2xl font-bold tracking-tighter mb-8 text-white">SYSTEM COMMAND</h1>
-                
-                <!-- Connection Status -->
-                <div class="mb-8 p-4 rounded-2xl bg-black/40 border border-white/5">
-                    <p class="text-[10px] text-slate-500 uppercase font-black mb-1 tracking-widest">Active Status</p>
+                <!-- Status -->
+                <div class="mb-6 p-3 rounded-xl bg-black/40 border border-white/5">
                     <div class="flex items-center gap-2">
-                        <div id="status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-600 transition-all duration-500"></div>
-                        <span id="status-text" class="font-mono text-sm uppercase tracking-tighter">INITIALIZING...</span>
+                        <div id="status-dot" class="w-2 h-2 rounded-full bg-slate-600"></div>
+                        <span id="status-text" class="text-xs font-mono uppercase">Syncing...</span>
                     </div>
                 </div>
 
-                <!-- Lock Controls -->
-                <div class="space-y-3 mb-8">
-                    <p class="text-xs font-bold text-slate-400 uppercase ml-1 mb-2">Safety Protocols</p>
-                    <button onclick="setDb('overlay_active', true)" id="lock-btn" class="w-full py-4 bg-red-600 hover:bg-red-700 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-30 shadow-lg shadow-red-900/20 flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg>
-                        ACTIVATE LOCK
-                    </button>
-                    <button onclick="setDb('overlay_active', false)" class="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold transition-all active:scale-95 text-slate-400 border border-white/5">
-                        FORCE BYPASS
-                    </button>
+                <!-- Command Buttons -->
+                <div class="space-y-2 mb-6">
+                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1">System State</p>
+                    <button onclick="setDb('overlay_active', true)" id="lock-btn" class="w-full py-3 bg-red-600 hover:bg-red-700 rounded-lg font-bold text-sm transition-all active:scale-95">LOCK SYSTEM</button>
+                    <button onclick="setDb('overlay_active', false)" class="w-full py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-400 transition-all active:scale-95">BYPASS</button>
                 </div>
 
-                <!-- Stream Controls -->
-                <div class="space-y-3">
-                    <p class="text-xs font-bold text-slate-400 uppercase ml-1 mb-2">Surveillance</p>
+                <div class="space-y-2 mb-6">
+                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1">Surveillance</p>
                     <div class="flex gap-2">
-                        <button onclick="setDb('stream_active', true)" id="start-stream" class="flex-1 py-4 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-emerald-900/20">
-                            START LIVE
-                        </button>
-                        <button onclick="setDb('stream_active', false)" id="stop-stream" class="flex-1 py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold transition-all active:scale-95 text-slate-400 border border-white/5">
-                            STOP
-                        </button>
+                        <button onclick="setDb('stream_active', true)" id="start-stream-btn" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 rounded-lg text-xs font-bold transition-all active:scale-95">START LIVE</button>
+                        <button onclick="setDb('stream_active', false)" id="stop-stream-btn" class="flex-1 py-3 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition-all active:scale-95">STOP</button>
                     </div>
+                </div>
+
+                <!-- Typing Control -->
+                <div class="space-y-2">
+                    <p class="text-[10px] text-slate-500 uppercase font-bold px-1">Remote Typing</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="type-input" placeholder="Type here..." class="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white">
+                        <button onclick="sendText()" class="bg-blue-600 hover:bg-blue-700 px-3 py-2 rounded-lg text-xs font-bold uppercase transition-all active:scale-95">Send</button>
+                    </div>
+                    <p class="text-[8px] text-slate-600 italic px-1">Press enter to send quickly</p>
                 </div>
             </div>
         </div>
 
-        <!-- Main Viewport -->
-        <div class="lg:col-span-8">
-            <div class="glass p-4 rounded-3xl shadow-2xl h-full flex flex-col min-h-[500px]">
-                <div class="flex items-center justify-between mb-4 px-4 pt-2">
+        <!-- Viewport -->
+        <div class="lg:col-span-9">
+            <div class="glass p-4 rounded-3xl h-full flex flex-col min-h-[600px]">
+                <div class="flex items-center justify-between mb-3 px-2">
                     <div class="flex items-center gap-3">
-                        <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse" id="stream-indicator" style="display:none"></div>
-                        <h2 class="text-sm font-bold tracking-widest uppercase opacity-70">Remote Viewport</h2>
+                        <div id="live-indicator" class="w-2 h-2 rounded-full bg-red-500 animate-pulse hidden"></div>
+                        <span class="text-[10px] font-bold tracking-widest uppercase opacity-50">Live Viewport (Click to Remote Click)</span>
                     </div>
-                    <div class="flex items-center gap-4">
-                        <span id="timestamp" class="text-[10px] font-mono opacity-40">STREAMS DISCONNECTED</span>
-                        <div class="flex gap-1">
-                            <div class="w-1.5 h-1.5 rounded-full bg-white/10"></div>
-                            <div class="w-1.5 h-1.5 rounded-full bg-white/10"></div>
-                            <div class="w-1.5 h-1.5 rounded-full bg-white/10"></div>
-                        </div>
-                    </div>
+                    <span id="timestamp" class="text-[10px] font-mono opacity-40">--:--:--</span>
                 </div>
                 
-                <div class="relative flex-1 bg-black/60 rounded-2xl overflow-hidden border border-white/5 flex items-center justify-center">
+                <div id="viewport-container" class="relative flex-1 bg-black rounded-2xl overflow-hidden cursor-crosshair border border-white/10 group flex items-center justify-center">
                     <!-- Live Image Display -->
-                    <img id="live-img" class="max-w-full max-h-full object-contain hidden transition-opacity duration-300" src="" />
+                    <img id="live-img" class="max-w-full max-h-full object-contain hidden" src="" onmousedown="remoteClick(event)" draggable="false" />
                     
                     <!-- Loader / Placeholder -->
-                    <div id="loader" class="text-slate-700 flex flex-col items-center">
-                        <div class="relative mb-4">
-                            <svg class="animate-spin h-10 w-10 opacity-20" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        </div>
-                        <p class="text-[10px] uppercase font-black tracking-[0.2em] opacity-30">Waiting for data stream</p>
+                    <div id="loader" class="absolute inset-0 flex flex-col items-center justify-center text-slate-700">
+                        <div class="w-8 h-8 border-2 border-slate-800 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                        <p class="text-[9px] uppercase tracking-widest">Awaiting Link...</p>
                     </div>
-
-                    <!-- Overlay for Lock State -->
-                    <div id="lock-overlay" class="absolute inset-0 bg-red-900/10 backdrop-blur-[2px] pointer-events-none hidden flex items-center justify-center">
-                        <div class="bg-red-600 text-[10px] font-black px-4 py-1 rounded-full text-white tracking-widest animate-bounce">
-                            TARGET SYSTEM LOCKED
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mt-4 px-4 pb-2 flex justify-between items-center opacity-40">
-                    <p class="text-[9px] uppercase tracking-widest">Buffer: 40ms</p>
-                    <p class="text-[9px] uppercase tracking-widest">Protocol: RTDB-B64</p>
                 </div>
             </div>
         </div>
-
     </div>
 
     <script>
-        // Your Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBcL0G8b7Yt_Ahk29cUaTTfp6Uf4QgNfTI",
             authDomain: "smsyy-f7bb7.firebaseapp.com",
@@ -140,53 +94,76 @@
             appId: "1:199149027655:web:2d9e70e7dff7abc293cc62"
         };
 
-        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // Helper to update Firebase values
-        function setDb(path, val) {
-            database.ref('system_settings/' + path).set(val);
+        function setDb(path, val) { 
+            database.ref('system_settings/' + path).set(val); 
         }
 
-        // Lock Status Listener (Sync with Python Script)
+        // Remote Clicking Logic
+        function remoteClick(e) {
+            const img = document.getElementById('live-img');
+            const rect = img.getBoundingClientRect();
+            
+            // Calculate relative coordinates (0 to 1) based on the image size
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            
+            // Send to Firebase with a timestamp to ensure the listener triggers every time
+            database.ref('system_settings/mouse_click').set({
+                x: x,
+                y: y,
+                ts: Date.now()
+            });
+        }
+
+        // Remote Typing Logic
+        function sendText() {
+            const input = document.getElementById('type-input');
+            const text = input.value;
+            if(text) {
+                // We append a small delay or clear to ensure consecutive identical messages trigger
+                database.ref('system_settings/remote_typing').set(text);
+                input.value = "";
+                // Briefly reset typing path to allow same text again later
+                setTimeout(() => {
+                    database.ref('system_settings/remote_typing').set("");
+                }, 500);
+            }
+        }
+
+        // Enter key to send text
+        document.getElementById('type-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendText();
+        });
+
+        // Status Listener
         database.ref('system_settings/overlay_active').on('value', (s) => {
             const active = s.val();
-            const btn = document.getElementById('lock-btn');
-            const txt = document.getElementById('status-text');
             const dot = document.getElementById('status-dot');
-            const lockOverlay = document.getElementById('lock-overlay');
-
+            const txt = document.getElementById('status-text');
+            const btn = document.getElementById('lock-btn');
+            
             if(active) {
-                txt.innerText = "LOCKED";
-                txt.className = "font-mono text-sm text-red-500 font-bold";
-                dot.className = "w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.8)]";
-                btn.disabled = true;
-                btn.innerHTML = `<span>LOCKED</span>`;
-                lockOverlay.classList.remove('hidden');
+                txt.innerText = "SYSTEM LOCKED";
+                txt.className = "text-xs font-mono uppercase text-red-500 font-bold";
+                dot.className = "w-2 h-2 rounded-full bg-red-500 animate-pulse";
+                btn.innerText = "LOCKED";
+                btn.classList.replace('bg-red-600', 'bg-red-900');
             } else {
                 txt.innerText = "ONLINE / READY";
-                txt.className = "font-mono text-sm text-emerald-400 font-bold";
-                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]";
-                btn.disabled = false;
-                btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg> ACTIVATE LOCK`;
-                lockOverlay.classList.add('hidden');
+                txt.className = "text-xs font-mono uppercase text-emerald-500";
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                btn.innerText = "LOCK SYSTEM";
+                btn.classList.replace('bg-red-900', 'bg-red-600');
             }
         });
 
-        // Stream Status Listener
+        // Stream Status UI
         database.ref('system_settings/stream_active').on('value', (s) => {
-            const streaming = s.val();
-            document.getElementById('stream-indicator').style.display = streaming ? 'block' : 'none';
-            
-            const startBtn = document.getElementById('start-stream');
-            if (streaming) {
-                startBtn.classList.add('opacity-40', 'pointer-events-none');
-                startBtn.innerText = "LIVE NOW";
-            } else {
-                startBtn.classList.remove('opacity-40', 'pointer-events-none');
-                startBtn.innerText = "START LIVE";
-            }
+            const isStreaming = s.val();
+            document.getElementById('live-indicator').classList.toggle('hidden', !isStreaming);
         });
 
         // Screenshot Image Listener
@@ -198,7 +175,7 @@
                 img.src = b64;
                 img.classList.remove('hidden');
                 loader.classList.add('hidden');
-                document.getElementById('timestamp').innerText = "LAST CAPTURE: " + new Date().toLocaleTimeString();
+                document.getElementById('timestamp').innerText = "LIVE: " + new Date().toLocaleTimeString();
             }
         });
     </script>
